@@ -10,19 +10,11 @@ targets:
     deploymentTarget: "15.0"
 
     sources:
-      - path: .
-        excludes:
-          - .github
-          - project.yml
-          - README.md
-          - "*.ipa"
+      - path: FloatingByPeaga
 
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.phzin.FloatingByPeaga
-        INFOPLIST_FILE: Info.plist
+        INFOPLIST_FILE: FloatingByPeaga/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_VERSION: 5.0
-
-    info:
-      path: Info.plist
