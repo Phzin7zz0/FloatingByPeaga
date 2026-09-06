@@ -1,0 +1,20 @@
+name: FloatingByPeaga
+
+options:
+  bundleIdPrefix: com.floatingbypeaga
+
+targets:
+  FloatingByPeaga:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+
+    sources:
+      - path: .
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.floatingbypeaga.timer
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: FloatingByPeaga
+        SWIFT_VERSION: "5.0"
