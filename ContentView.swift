@@ -1,4 +1,3 @@
-```swift
 import SwiftUI
 import AVFoundation
 
@@ -196,4 +195,3 @@ struct PiPDisplayView: UIViewRepresentable {
         }
     }
 }
-```
