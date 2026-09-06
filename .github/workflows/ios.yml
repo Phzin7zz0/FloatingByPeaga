@@ -32,24 +32,35 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Criar IPA
+            - name: Criar IPA
         run: |
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" -type d | head -n 1)
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -type d -name "*.app" | head -n 1)
+
+          echo "APP encontrado: $APP_PATH"
 
           if [ -z "$APP_PATH" ]; then
-            echo "ERRO: .app não encontrado"
+            echo "ERRO: Nenhum .app encontrado"
             exit 1
           fi
 
           rm -rf Payload FloatingByPeaga.ipa
-          mkdir Payload
 
+          mkdir -p Payload
           cp -R "$APP_PATH" Payload/
 
-          zip -qry FloatingByPeaga.ipa Payload
+          # Criar IPA padrão
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload FloatingByPeaga.zip
 
-          echo "=== ESTRUTURA DA IPA ==="
-          unzip -l FloatingByPeaga.ipa
+          mv FloatingByPeaga.zip FloatingByPeaga.ipa
+
+          echo "===== VERIFICANDO ARQUIVO ====="
+          file FloatingByPeaga.ipa
+
+          echo "===== VERIFICANDO ZIP ====="
+          unzip -t FloatingByPeaga.ipa
+
+          echo "===== ESTRUTURA ====="
+          unzip -l FloatingByPeaga.ipa | head -30
 
       - name: Enviar IPA
         uses: actions/upload-artifact@v4
