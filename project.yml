@@ -10,13 +10,10 @@ targets:
     deploymentTarget: "15.0"
 
     sources:
-      - path: .
-        excludes:
-          - .github
-          - project.yml
-          - ios.yml
-          - README.md
-          - "*.ipa"
+      - path: ContentView.swift
+      - path: FloatingByPeagaApp.swift
+      - path: PiPManager.swift
+      - path: TimerRenderer.swift
 
     settings:
       base:
