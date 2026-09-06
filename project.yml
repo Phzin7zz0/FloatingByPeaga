@@ -17,4 +17,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.floatingbypeaga.timer
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: FloatingByPeaga
+        INFOPLIST_KEY_UIBackgroundModes:
+          - audio
+          - picture-in-picture
         SWIFT_VERSION: "5.0"
