@@ -34,29 +34,22 @@ jobs:
 
       - name: Criar IPA
         run: |
-          echo "=== PROCURANDO APP ==="
-
-          APP_PATH=$(find build -type d -name "*.app" | head -n 1)
-
-          echo "APP encontrado: $APP_PATH"
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" -type d | head -n 1)
 
           if [ -z "$APP_PATH" ]; then
-            echo "ERRO: Nenhum .app encontrado!"
+            echo "ERRO: .app não encontrado"
             exit 1
           fi
 
-          echo "=== CRIANDO IPA ==="
-
           rm -rf Payload FloatingByPeaga.ipa
-
-          mkdir -p Payload
+          mkdir Payload
 
           cp -R "$APP_PATH" Payload/
 
-          /usr/bin/zip -r FloatingByPeaga.ipa Payload
+          zip -qry FloatingByPeaga.ipa Payload
 
-          echo "=== IPA CRIADA ==="
-          ls -lh FloatingByPeaga.ipa
+          echo "=== ESTRUTURA DA IPA ==="
+          unzip -l FloatingByPeaga.ipa
 
       - name: Enviar IPA
         uses: actions/upload-artifact@v4
@@ -64,4 +57,3 @@ jobs:
           name: FloatingByPeaga-IPA
           path: FloatingByPeaga.ipa
           if-no-files-found: error
-          retention-days: 7
