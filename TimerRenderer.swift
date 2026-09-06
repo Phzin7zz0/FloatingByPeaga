@@ -8,14 +8,15 @@ enum TimerRenderer {
         let width = 640
         let height = 360
 
-        let attributes: [String: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey as String: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
         ]
 
         var pixelBuffer: CVPixelBuffer?
 
-        CVPixelBufferCreate(
+        let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
             width,
             height,
@@ -24,41 +25,88 @@ enum TimerRenderer {
             &pixelBuffer
         )
 
-        guard let buffer = pixelBuffer else {
+        guard status == kCVReturnSuccess,
+              let buffer = pixelBuffer else {
+            print("❌ Erro ao criar PixelBuffer:", status)
             return nil
         }
 
-        CVPixelBufferLockBaseAddress(buffer, [])
+        CVPixelBufferLockBaseAddress(
+            buffer,
+            []
+        )
+
+        defer {
+            CVPixelBufferUnlockBaseAddress(
+                buffer,
+                []
+            )
+        }
+
+        guard let baseAddress =
+                CVPixelBufferGetBaseAddress(buffer)
+        else {
+            print("❌ BaseAddress inválido")
+            return nil
+        }
 
         guard let context = CGContext(
-            data: CVPixelBufferGetBaseAddress(buffer),
+            data: baseAddress,
             width: width,
             height: height,
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+            bitmapInfo:
+                CGImageAlphaInfo.premultipliedFirst.rawValue |
+                CGBitmapInfo.byteOrder32Little.rawValue
         ) else {
-            CVPixelBufferUnlockBaseAddress(buffer, [])
+            print("❌ Não foi possível criar CGContext")
             return nil
         }
 
-        context.setFillColor(UIColor.black.cgColor)
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        // Fundo preto
+        context.setFillColor(
+            UIColor.black.cgColor
+        )
+
+        context.fill(
+            CGRect(
+                x: 0,
+                y: 0,
+                width: width,
+                height: height
+            )
+        )
 
         UIGraphicsPushContext(context)
 
-        let paragraphStyle = NSMutableParagraphStyle()
+        defer {
+            UIGraphicsPopContext()
+        }
+
+        let paragraphStyle =
+            NSMutableParagraphStyle()
+
         paragraphStyle.alignment = .center
 
-        let attributesText: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedDigitSystemFont(
+        let font =
+            UIFont.monospacedDigitSystemFont(
                 ofSize: 100,
                 weight: .bold
-            ),
-            .foregroundColor: UIColor.white,
-            .paragraphStyle: paragraphStyle
-        ]
+            )
+
+        let textAttributes:
+            [NSAttributedString.Key: Any] = [
+
+                .font: font,
+
+                .foregroundColor:
+                    UIColor.white,
+
+                .paragraphStyle:
+                    paragraphStyle
+            ]
 
         let rect = CGRect(
             x: 0,
@@ -69,12 +117,9 @@ enum TimerRenderer {
 
         text.draw(
             in: rect,
-            withAttributes: attributesText
+            withAttributes:
+                textAttributes
         )
-
-        UIGraphicsPopContext()
-
-        CVPixelBufferUnlockBaseAddress(buffer, [])
 
         return buffer
     }
