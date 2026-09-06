@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct ContentView: View {
 
@@ -7,98 +8,145 @@ struct ContentView: View {
 
     var body: some View {
 
-        VStack(spacing: 25) {
+        ZStack {
 
-            Spacer()
+            VStack(spacing: 25) {
 
-            // TÍTULO
-            Text("Floating Timer")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                Spacer()
 
-
-            // TIMER
-            Text(timerManager.formattedTime)
-                .font(.system(size: 55, weight: .bold, design: .monospaced))
-                .padding()
+                Text("Floating Timer")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
 
 
-            // STATUS
-            Text(pipManager.status)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                Text(timerManager.formattedTime)
+                    .font(
+                        .system(
+                            size: 55,
+                            weight: .bold,
+                            design: .monospaced
+                        )
+                    )
+                    .padding()
 
 
-            // BOTÕES TIMER
-            HStack(spacing: 15) {
+                Text(pipManager.status)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
 
-                Button("Iniciar") {
-                    timerManager.start()
+
+                HStack(spacing: 15) {
+
+                    Button("Iniciar") {
+                        timerManager.start()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+
+                    Button("Pausar") {
+                        timerManager.pause()
+                    }
+                    .buttonStyle(.bordered)
+
+
+                    Button("Resetar") {
+                        timerManager.reset()
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.borderedProminent)
 
-
-                Button("Pausar") {
-                    timerManager.pause()
-                }
-                .buttonStyle(.bordered)
-
-
-                Button("Resetar") {
-                    timerManager.reset()
-                }
-                .buttonStyle(.bordered)
-            }
-
-
-            // BOTÃO JANELA FLUTUANTE
-            Button(action: {
-
-                pipManager.startPiP()
-
-            }) {
-
-                HStack {
-
-                    Image(systemName: "pip.enter")
-
-                    Text("Abrir janela flutuante")
-
-                }
-                .font(.headline)
-                .padding()
-                .frame(maxWidth: .infinity)
-
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
-
-
-            // FECHAR PIP
-            if pipManager.isPiPActive {
 
                 Button(action: {
 
-                    pipManager.stopPiP()
+                    pipManager.startPiP()
 
                 }) {
 
                     HStack {
 
-                        Image(systemName: "pip.exit")
+                        Image(systemName: "pip.enter")
 
-                        Text("Fechar janela flutuante")
+                        Text("Abrir janela flutuante")
 
                     }
+                    .font(.headline)
                     .padding()
+                    .frame(maxWidth: .infinity)
 
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+
+
+                if pipManager.isPiPActive {
+
+                    Button(action: {
+
+                        pipManager.stopPiP()
+
+                    }) {
+
+                        HStack {
+
+                            Image(systemName: "pip.exit")
+
+                            Text("Fechar janela flutuante")
+
+                        }
+                        .padding()
+
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Spacer()
             }
 
 
-            Spacer()
+            // VIEW QUE HOSPEDA O AVSampleBufferDisplayLayer
+            PiPDisplayView(
+                displayLayer: pipManager.displayLayer
+            )
+            .frame(width: 1, height: 1)
+            .opacity(0.01)
+            .allowsHitTesting(false)
         }
         .padding()
+    }
+}
+
+
+// MARK: - UIView para hospedar o Display Layer
+
+struct PiPDisplayView: UIViewRepresentable {
+
+    let displayLayer: AVSampleBufferDisplayLayer
+
+
+    func makeUIView(
+        context: Context
+    ) -> UIView {
+
+        let view = UIView()
+
+        view.backgroundColor = .black
+
+        displayLayer.frame = view.bounds
+
+        view.layer.addSublayer(
+            displayLayer
+        )
+
+        return view
+    }
+
+
+    func updateUIView(
+        _ uiView: UIView,
+        context: Context
+    ) {
+
+        displayLayer.frame = uiView.bounds
     }
 }
