@@ -5,7 +5,8 @@ import CoreMedia
 final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
-    private var startTime: CMTime?
+
+    private var frameCount: Int64 = 0
 
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
@@ -13,7 +14,10 @@ final class PiPFrameProvider {
 
     func update(text: String) {
 
-        guard let pixelBuffer = TimerRenderer.createPixelBuffer(text: text) else {
+        guard let pixelBuffer =
+                TimerRenderer.createPixelBuffer(text: text)
+        else {
+            print("ERRO: PixelBuffer não criado")
             return
         }
 
@@ -27,29 +31,24 @@ final class PiPFrameProvider {
             )
 
         guard formatStatus == noErr,
-              let formatDescription else {
+              let formatDescription
+        else {
+            print("ERRO: FormatDescription")
             return
         }
 
-        // Tempo baseado no relógio do sistema
-        let currentTime = CMClockGetTime(CMClockGetHostTimeClock())
+        let presentationTime = CMTime(
+            value: frameCount,
+            timescale: 30
+        )
 
-        if startTime == nil {
-            startTime = currentTime
-        }
-
-        guard let startTime else {
-            return
-        }
-
-        let presentationTime =
-            CMTimeSubtract(currentTime, startTime)
+        let duration = CMTime(
+            value: 1,
+            timescale: 30
+        )
 
         var timingInfo = CMSampleTimingInfo(
-            duration: CMTime(
-                value: 1,
-                timescale: 30
-            ),
+            duration: duration,
             presentationTimeStamp: presentationTime,
             decodeTimeStamp: .invalid
         )
@@ -66,17 +65,29 @@ final class PiPFrameProvider {
             )
 
         guard result == noErr,
-              let sampleBuffer else {
+              let sampleBuffer
+        else {
+            print("ERRO: SampleBuffer")
             return
         }
 
         if displayLayer.isReadyForMoreMediaData {
+
             displayLayer.enqueue(sampleBuffer)
+
+            frameCount += 1
+
+        } else {
+
+            print("Layer não está pronto")
         }
     }
 
+
     func reset() {
+
         displayLayer.flush()
-        startTime = nil
+
+        frameCount = 0
     }
 }
