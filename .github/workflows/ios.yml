@@ -20,7 +20,7 @@ jobs:
       - name: Criar projeto Xcode
         run: xcodegen generate
 
-      - name: Compilar para iPhone
+      - name: Compilar App
         run: |
           xcodebuild \
             -project FloatingByPeaga.xcodeproj \
@@ -31,32 +31,29 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Criar IPA
+      - name: Criar IPA corretamente
         run: |
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -type d -name "*.app" | head -n 1)
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -type d -name "*.app" | head -n 1)
 
-          echo "APP encontrado: $APP_PATH"
+          echo "App encontrado:"
+          echo "$APP_PATH"
 
-          if [ -z "$APP_PATH" ]; then
-            echo "ERRO: Nenhum .app encontrado"
-            exit 1
-          fi
+          rm -rf Payload
+          rm -f FloatingByPeaga.ipa
 
-          rm -rf Payload FloatingByPeaga.ipa
           mkdir -p Payload
 
           cp -R "$APP_PATH" Payload/
 
-          zip -r FloatingByPeaga.ipa Payload
+          cd .
 
-          echo "===== TESTANDO IPA ====="
+          ditto -c -k --sequesterRsrc --keepParent Payload FloatingByPeaga.ipa
+
+          echo "===== TESTANDO ====="
           unzip -t FloatingByPeaga.ipa
 
           echo "===== ESTRUTURA ====="
-          unzip -l FloatingByPeaga.ipa | head -30
-
-          echo "===== ARQUIVO FINAL ====="
-          ls -lh FloatingByPeaga.ipa
+          unzip -l FloatingByPeaga.ipa
 
       - name: Enviar IPA
         uses: actions/upload-artifact@v4
