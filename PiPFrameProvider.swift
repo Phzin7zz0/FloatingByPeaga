@@ -5,7 +5,6 @@ import CoreVideo
 
 final class PiPFrameProvider {
 
-```
 private let displayLayer: AVSampleBufferDisplayLayer
 private var frameCount: Int64 = 0
 
@@ -91,12 +90,10 @@ func update(text: String) {
     }
 }
 
-func reset() {
+    func reset() {
 
-    displayLayer.flushAndRemoveImage()
+        displayLayer.flushAndRemoveImage()
 
-    frameCount = 0
-}
-```
-
+        frameCount = 0
+    }
 }
