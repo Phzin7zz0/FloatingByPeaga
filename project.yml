@@ -1,23 +1,29 @@
 name: FloatingByPeaga
 
 options:
-  bundleIdPrefix: com.floatingbypeaga
+  bundleIdPrefix: com.phzin
 
 targets:
   FloatingByPeaga:
     type: application
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "15.0"
 
     sources:
       - path: .
+        excludes:
+          - .github
+          - project.yml
+          - ios.yml
+          - README.md
+          - "*.ipa"
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.floatingbypeaga.timer
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: FloatingByPeaga
-        INFOPLIST_KEY_UIBackgroundModes:
-          - audio
-          - picture-in-picture
-        SWIFT_VERSION: "5.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.phzin.FloatingByPeaga
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: 5.0
+
+    info:
+      path: Info.plist
