@@ -12,9 +12,9 @@ final class PiPManager: NSObject, ObservableObject {
 
     private var pipController: AVPictureInPictureController?
     private var frameProvider: PiPFrameProvider?
-
     private var renderTimer: Timer?
-    private var seconds: Int = 0
+
+    private var startTime = Date()
 
     override init() {
         super.init()
@@ -27,11 +27,20 @@ final class PiPManager: NSObject, ObservableObject {
     private func setupPiP() {
 
         guard AVPictureInPictureController.isPictureInPictureSupported() else {
-            status = "PiP não suportado neste dispositivo"
+            status = "PiP não suportado"
             return
         }
 
+        status = "Configurando PiP..."
+
+        displayLayer.videoGravity = .resizeAspect
+        displayLayer.backgroundColor = UIColor.black.cgColor
+
         if #available(iOS 15.0, *) {
+
+            frameProvider = PiPFrameProvider(
+                displayLayer: displayLayer
+            )
 
             let contentSource =
                 AVPictureInPictureController.ContentSource(
@@ -39,29 +48,56 @@ final class PiPManager: NSObject, ObservableObject {
                     playbackDelegate: self
                 )
 
-            pipController =
-                AVPictureInPictureController(
-                    contentSource: contentSource
-                )
-
-            pipController?.delegate = self
-
-            pipController?
-                .canStartPictureInPictureAutomaticallyFromInline = false
-
-            pipController?.requiresLinearPlayback = false
-
-            frameProvider = PiPFrameProvider(
-                displayLayer: displayLayer
+            pipController = AVPictureInPictureController(
+                contentSource: contentSource
             )
 
-            displayLayer.videoGravity = .resizeAspect
+            pipController?.delegate = self
+            pipController?.requiresLinearPlayback = false
 
-            status = "PiP configurado"
+            // COMEÇA A GERAR FRAMES IMEDIATAMENTE
+            startFrameUpdates()
 
-            // FRAME INICIAL
-            frameProvider?.update(text: "00:00")
+            status = "Aguardando PiP ficar disponível..."
         }
+    }
+
+
+    // MARK: - GERAR FRAMES
+
+    private func startFrameUpdates() {
+
+        renderTimer?.invalidate()
+
+        startTime = Date()
+
+        renderTimer = Timer.scheduledTimer(
+            withTimeInterval: 1.0 / 30.0,
+            repeats: true
+        ) { [weak self] _ in
+
+            guard let self else { return }
+
+            let elapsed = Int(
+                Date().timeIntervalSince(self.startTime)
+            )
+
+            let minutes = elapsed / 60
+            let seconds = elapsed % 60
+
+            let text = String(
+                format: "%02d:%02d",
+                minutes,
+                seconds
+            )
+
+            self.frameProvider?.update(text: text)
+        }
+
+        RunLoop.main.add(
+            renderTimer!,
+            forMode: .common
+        )
     }
 
 
@@ -69,88 +105,49 @@ final class PiPManager: NSObject, ObservableObject {
 
     func startPiP() {
 
-        DispatchQueue.main.async {
+        guard let pipController else {
+            status = "Erro: PiP Controller não criado"
+            return
+        }
 
-            guard let pipController = self.pipController else {
-                self.status = "Erro: PiP Controller não criado"
-                return
-            }
+        status = "Verificando PiP..."
 
-            self.status = "Preparando janela..."
+        // Força mais alguns frames
+        for _ in 0..<30 {
+            frameProvider?.update(text: "00:00")
+        }
 
-            // Reinicia o display
-            self.frameProvider?.reset()
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 1.0
+        ) {
 
-            // Envia alguns frames antes de abrir
-            for _ in 0..<5 {
-                self.frameProvider?.update(
-                    text: self.formattedTime()
-                )
-            }
+            print(
+                "PiP Supported:",
+                AVPictureInPictureController.isPictureInPictureSupported()
+            )
 
-            DispatchQueue.main.asyncAfter(
-                deadline: .now() + 0.3
-            ) {
+            print(
+                "PiP Possible:",
+                pipController.isPictureInPicturePossible
+            )
 
-                print(
-                    "PiP possível:",
-                    pipController.isPictureInPicturePossible
-                )
+            if pipController.isPictureInPicturePossible {
 
-                self.status =
-                    pipController.isPictureInPicturePossible
-                    ? "Abrindo janela..."
-                    : "PiP ainda não disponível"
+                self.status = "Abrindo janela..."
 
                 pipController.startPictureInPicture()
 
-                self.startFrameUpdates()
+            } else {
+
+                self.status = "PiP ainda não disponível"
             }
         }
     }
 
 
-    // MARK: - ATUALIZAR FRAMES
-
-    private func startFrameUpdates() {
-
-        renderTimer?.invalidate()
-
-        renderTimer = Timer.scheduledTimer(
-            withTimeInterval: 1.0 / 30.0,
-            repeats: true
-        ) { [weak self] _ in
-
-            guard let self = self else { return }
-
-            self.frameProvider?.update(
-                text: self.formattedTime()
-            )
-        }
-    }
-
-
-    // MARK: - FORMATAR TEMPO
-
-    private func formattedTime() -> String {
-
-        let minutes = seconds / 60
-        let secs = seconds % 60
-
-        return String(
-            format: "%02d:%02d",
-            minutes,
-            secs
-        )
-    }
-
-
-    // MARK: - FECHAR PIP
+    // MARK: - FECHAR
 
     func stopPiP() {
-
-        renderTimer?.invalidate()
-        renderTimer = nil
 
         pipController?.stopPictureInPicture()
     }
@@ -171,8 +168,7 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
     ) {
 
         DispatchQueue.main.async {
-            self.isPiPActive = true
-            self.status = "PiP iniciando..."
+            self.status = "Abrindo..."
         }
     }
 
@@ -194,14 +190,8 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
     ) {
 
         DispatchQueue.main.async {
-
+            self.status = "Erro: \(error.localizedDescription)"
             print("ERRO PIP:", error)
-
-            self.status =
-                "Erro PiP: \(error.localizedDescription)"
-
-            self.renderTimer?.invalidate()
-            self.renderTimer = nil
         }
     }
 
@@ -211,12 +201,8 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
     ) {
 
         DispatchQueue.main.async {
-
             self.isPiPActive = false
             self.status = "PiP fechado"
-
-            self.renderTimer?.invalidate()
-            self.renderTimer = nil
         }
     }
 }
