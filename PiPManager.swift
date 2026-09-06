@@ -5,6 +5,7 @@ import AVKit
 final class PiPManager: NSObject, ObservableObject {
 
     @Published var isPiPActive = false
+    @Published var status = "Preparando PiP..."
 
     let displayLayer = AVSampleBufferDisplayLayer()
 
@@ -18,7 +19,7 @@ final class PiPManager: NSObject, ObservableObject {
     private func setupPiP() {
 
         guard AVPictureInPictureController.isPictureInPictureSupported() else {
-            print("PiP não é suportado neste dispositivo")
+            status = "PiP não suportado neste ambiente"
             return
         }
 
@@ -35,17 +36,24 @@ final class PiPManager: NSObject, ObservableObject {
 
             pipController?.delegate = self
             pipController?.canStartPictureInPictureAutomaticallyFromInline = false
-            pipController?.requiresLinearPlayback = true
+            pipController?.requiresLinearPlayback = false
+
+            status = "PiP configurado"
         }
     }
 
     func startPiP() {
-        guard let pipController else { return }
+
+        guard let pipController else {
+            status = "Erro: PiP Controller não criado"
+            return
+        }
 
         if pipController.isPictureInPicturePossible {
+            status = "Abrindo janela..."
             pipController.startPictureInPicture()
         } else {
-            print("PiP ainda não está disponível")
+            status = "PiP ainda não está disponível"
         }
     }
 
@@ -64,6 +72,16 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
     ) {
         DispatchQueue.main.async {
             self.isPiPActive = true
+            self.status = "PiP ativo!"
+        }
+    }
+
+    func pictureInPictureController(
+        _ pictureInPictureController: AVPictureInPictureController,
+        failedToStartPictureInPictureWithError error: Error
+    ) {
+        DispatchQueue.main.async {
+            self.status = "Erro PiP: \(error.localizedDescription)"
         }
     }
 
@@ -72,6 +90,7 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
     ) {
         DispatchQueue.main.async {
             self.isPiPActive = false
+            self.status = "PiP fechado"
         }
     }
 }
@@ -85,15 +104,12 @@ extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         setPlaying playing: Bool
-    ) {
-        // Cronômetro é conteúdo ao vivo
-    }
+    ) {}
 
     func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController: AVPictureInPictureController
     ) -> CMTimeRange {
-
-        return CMTimeRange(
+        CMTimeRange(
             start: .zero,
             duration: .positiveInfinity
         )
@@ -102,15 +118,13 @@ extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
     func pictureInPictureControllerIsPlaybackPaused(
         _ pictureInPictureController: AVPictureInPictureController
     ) -> Bool {
-        return false
+        false
     }
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         didTransitionToRenderSize newRenderSize: CMVideoDimensions
-    ) {
-        // Não precisamos fazer nada aqui
-    }
+    ) {}
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
@@ -120,4 +134,3 @@ extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
         completionHandler()
     }
 }
-
