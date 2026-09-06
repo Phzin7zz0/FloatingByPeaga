@@ -32,7 +32,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-            - name: Criar IPA
+                  - name: Criar IPA
         run: |
           APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -type d -name "*.app" | head -n 1)
 
@@ -44,14 +44,20 @@ jobs:
           fi
 
           rm -rf Payload FloatingByPeaga.ipa
-
           mkdir -p Payload
+
           cp -R "$APP_PATH" Payload/
 
-          # Criar IPA padrão
-          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload FloatingByPeaga.zip
+          zip -r FloatingByPeaga.ipa Payload
 
-          mv FloatingByPeaga.zip FloatingByPeaga.ipa
+          echo "===== TESTANDO IPA ====="
+          unzip -t FloatingByPeaga.ipa
+
+          echo "===== ESTRUTURA ====="
+          unzip -l FloatingByPeaga.ipa | head -30
+
+          echo "===== ARQUIVO FINAL ====="
+          ls -lh FloatingByPeaga.ipa
 
           echo "===== VERIFICANDO ARQUIVO ====="
           file FloatingByPeaga.ipa
