@@ -1,58 +1,45 @@
- import SwiftUI
+import SwiftUI
 
 struct ContentView: View {
-
+    
     @StateObject private var timerManager = TimerManager()
-    @State private var showControls = false
-
+    
     var body: some View {
-        VStack(spacing: 0) {
-
-            // Cronômetro
-            Text(timerManager.formattedTime())
-                .font(.system(size: 42, weight: .bold, design: .rounded))
+        VStack(spacing: 30) {
+            
+            Text(timerManager.formattedTime)
+                .font(.system(size: 55, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.black)
-                .onTapGesture {
-                    withAnimation {
-                        showControls.toggle()
+            
+            HStack(spacing: 20) {
+                
+                // Botão iniciar / pausar
+                Button(action: {
+                    if timerManager.isRunning {
+                        timerManager.pause()
+                    } else {
+                        timerManager.start()
                     }
+                }) {
+                    Image(systemName: timerManager.isRunning
+                          ? "pause.fill"
+                          : "play.fill")
+                        .font(.system(size: 30))
+                        .frame(width: 80, height: 60)
                 }
-
-            // Controles
-            if showControls {
-                HStack(spacing: 35) {
-
-                    Button {
-                        timerManager.togglePause()
-                    } label: {
-                        Image(systemName: timerManager.isRunning
-                              ? "pause.fill"
-                              : "play.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-
-                    Button {
-                        timerManager.reset()
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
+                .buttonStyle(.borderedProminent)
+                
+                // Botão reiniciar
+                Button(action: {
+                    timerManager.reset()
+                }) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 28))
+                        .frame(width: 80, height: 60)
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 25)
-                .background(Color.black)
+                .buttonStyle(.bordered)
             }
         }
-        .background(Color.black)
+        .padding()
     }
-}
-
-#Preview {
-    ContentView()
 }
