@@ -8,10 +8,9 @@ enum TimerRenderer {
         let width = 640
         let height = 360
 
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        let attributes: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
         ]
 
         var pixelBuffer: CVPixelBuffer?
@@ -27,26 +26,18 @@ enum TimerRenderer {
 
         guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
-            print("❌ Erro ao criar PixelBuffer:", status)
+            print("Erro ao criar PixelBuffer")
             return nil
         }
 
-        CVPixelBufferLockBaseAddress(
-            buffer,
-            []
-        )
+        CVPixelBufferLockBaseAddress(buffer, [])
 
         defer {
-            CVPixelBufferUnlockBaseAddress(
-                buffer,
-                []
-            )
+            CVPixelBufferUnlockBaseAddress(buffer, [])
         }
 
-        guard let baseAddress =
-                CVPixelBufferGetBaseAddress(buffer)
-        else {
-            print("❌ BaseAddress inválido")
+        guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
+            print("BaseAddress inválido")
             return nil
         }
 
@@ -57,19 +48,14 @@ enum TimerRenderer {
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo:
-                CGImageAlphaInfo.premultipliedFirst.rawValue |
-                CGBitmapInfo.byteOrder32Little.rawValue
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
         ) else {
-            print("❌ Não foi possível criar CGContext")
+            print("Erro ao criar CGContext")
             return nil
         }
 
-        // Fundo preto
-        context.setFillColor(
-            UIColor.black.cgColor
-        )
-
+        // FUNDO PRETO
+        context.setFillColor(UIColor.black.cgColor)
         context.fill(
             CGRect(
                 x: 0,
@@ -79,47 +65,67 @@ enum TimerRenderer {
             )
         )
 
+        // Borda para teste
+        context.setStrokeColor(UIColor.red.cgColor)
+        context.setLineWidth(4)
+
+        context.stroke(
+            CGRect(
+                x: 2,
+                y: 2,
+                width: width - 4,
+                height: height - 4
+            )
+        )
+
         UIGraphicsPushContext(context)
 
-        defer {
-            UIGraphicsPopContext()
-        }
-
-        let paragraphStyle =
-            NSMutableParagraphStyle()
-
+        let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
 
-        let font =
-            UIFont.monospacedDigitSystemFont(
-                ofSize: 100,
+        let textAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(
+                ofSize: 120,
                 weight: .bold
-            )
+            ),
+            .foregroundColor: UIColor.white,
+            .paragraphStyle: paragraphStyle
+        ]
 
-        let textAttributes:
-            [NSAttributedString.Key: Any] = [
-
-                .font: font,
-
-                .foregroundColor:
-                    UIColor.white,
-
-                .paragraphStyle:
-                    paragraphStyle
-            ]
-
-        let rect = CGRect(
+        let textRect = CGRect(
             x: 0,
-            y: (height - 120) / 2,
+            y: 100,
             width: width,
-            height: 120
+            height: 150
         )
 
+        // DESENHA O CRONÔMETRO
         text.draw(
-            in: rect,
-            withAttributes:
-                textAttributes
+            in: textRect,
+            withAttributes: textAttributes
         )
+
+        // Texto pequeno para debug
+        let debugAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(
+                ofSize: 25,
+                weight: .medium
+            ),
+            .foregroundColor: UIColor.green,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        "FLOATING TIMER".draw(
+            in: CGRect(
+                x: 0,
+                y: 260,
+                width: width,
+                height: 40
+            ),
+            withAttributes: debugAttributes
+        )
+
+        UIGraphicsPopContext()
 
         return buffer
     }
