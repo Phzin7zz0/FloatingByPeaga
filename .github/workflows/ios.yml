@@ -23,14 +23,14 @@ jobs:
       - name: Compilar para iPhone
         run: |
           xcodebuild \
-          -project FloatingByPeaga.xcodeproj \
-          -scheme FloatingByPeaga \
-          -sdk iphoneos \
-          -configuration Release \
-          CODE_SIGNING_ALLOWED=NO \
-          build
+            -project FloatingByPeaga.xcodeproj \
+            -scheme FloatingByPeaga \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            build
 
-            - name: Criar IPA
+      - name: Criar IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/FloatingByPeaga.app" -type d | head -n 1)
 
