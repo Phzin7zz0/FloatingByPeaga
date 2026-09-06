@@ -1,0 +1,30 @@
+name: Build FloatingByPeaga
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Criar projeto Xcode
+        run: xcodegen generate
+
+      - name: Compilar app
+        run: |
+          xcodebuild \
+          -project FloatingByPeaga.xcodeproj \
+          -scheme FloatingByPeaga \
+          -sdk iphonesimulator \
+          -configuration Release \
+          build
