@@ -20,11 +20,26 @@ jobs:
       - name: Criar projeto Xcode
         run: xcodegen generate
 
-      - name: Compilar app
+      - name: Compilar para iPhone
         run: |
           xcodebuild \
           -project FloatingByPeaga.xcodeproj \
           -scheme FloatingByPeaga \
-          -sdk iphonesimulator \
+          -sdk iphoneos \
           -configuration Release \
+          CODE_SIGNING_ALLOWED=NO \
           build
+
+      - name: Criar IPA
+        run: |
+          mkdir -p Payload
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FloatingByPeaga.app" -type d | head -1)
+          cp -R "$APP_PATH" Payload/
+          zip -r FloatingByPeaga.ipa Payload
+          rm -rf Payload
+
+      - name: Enviar IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FloatingByPeaga-IPA
+          path: FloatingByPeaga.ipa
