@@ -10,17 +10,23 @@ final class TimerManager: ObservableObject {
     private var timer: Timer?
     private var pipFrameProvider: PiPFrameProvider?
 
+    private var lastPiPUpdate: Date = .distantPast
+
     // Conecta o cronômetro ao Picture-in-Picture
     func connectPiP(displayLayer: AVSampleBufferDisplayLayer) {
         pipFrameProvider = PiPFrameProvider(displayLayer: displayLayer)
+
         updatePiP()
     }
 
     // Iniciar cronômetro
     func start() {
+
         guard !isRunning else { return }
 
         isRunning = true
+
+        let startDate = Date().addingTimeInterval(-elapsedTime)
 
         timer = Timer.scheduledTimer(
             withTimeInterval: 0.01,
@@ -30,29 +36,51 @@ final class TimerManager: ObservableObject {
             guard let self else { return }
 
             DispatchQueue.main.async {
-                self.elapsedTime += 0.01
-                self.updatePiP()
+
+                self.elapsedTime =
+                    Date().timeIntervalSince(startDate)
+
+                // Atualiza PiP aproximadamente a 30 FPS
+                let now = Date()
+
+                if now.timeIntervalSince(
+                    self.lastPiPUpdate
+                ) >= (1.0 / 30.0) {
+
+                    self.lastPiPUpdate = now
+                    self.updatePiP()
+                }
             }
         }
     }
 
     // Pausar cronômetro
     func pause() {
+
         timer?.invalidate()
         timer = nil
+
         isRunning = false
+
+        updatePiP()
     }
 
     // Reiniciar cronômetro
     func reset() {
+
         pause()
+
         elapsedTime = 0
+
         updatePiP()
     }
 
-    // Atualiza o conteúdo mostrado no PiP
+    // Atualiza conteúdo do PiP
     private func updatePiP() {
-        pipFrameProvider?.update(text: formattedTime)
+
+        pipFrameProvider?.update(
+            text: formattedTime
+        )
     }
 
     // Formato: 5:59.77
