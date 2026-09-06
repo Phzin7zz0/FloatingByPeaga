@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import AVKit
 import UIKit
+import CoreMedia
 
 final class PiPManager: NSObject, ObservableObject {
 
@@ -34,7 +35,10 @@ final class PiPManager: NSObject, ObservableObject {
             return
         }
 
+
+        // Configura áudio para manter o app ativo
         do {
+
             let audioSession = AVAudioSession.sharedInstance()
 
             try audioSession.setCategory(
@@ -46,17 +50,25 @@ final class PiPManager: NSObject, ObservableObject {
             try audioSession.setActive(true)
 
         } catch {
+
             status = "Erro no áudio: \(error.localizedDescription)"
             return
         }
 
 
+        // Configuração da camada de vídeo
         displayLayer.videoGravity = .resizeAspect
+        displayLayer.backgroundColor = UIColor.black.cgColor
 
 
+        // Cria o gerador de frames
         frameProvider = PiPFrameProvider(
             displayLayer: displayLayer
         )
+
+
+        // Limpa qualquer estado anterior
+        displayLayer.flush()
 
 
         if #available(iOS 15.0, *) {
@@ -67,16 +79,19 @@ final class PiPManager: NSObject, ObservableObject {
                     playbackDelegate: self
                 )
 
+
             pipController =
                 AVPictureInPictureController(
                     contentSource: contentSource
                 )
+
 
             pipController?.delegate = self
 
             pipController?.requiresLinearPlayback = false
 
 
+            // Começa a enviar frames imediatamente
             startFrameUpdates()
 
 
@@ -96,14 +111,16 @@ final class PiPManager: NSObject, ObservableObject {
         startTime = Date()
 
 
+        // Renderiza 30 frames por segundo
         renderTimer = Timer.scheduledTimer(
             withTimeInterval: 1.0 / 30.0,
             repeats: true
         ) { [weak self] _ in
 
-            guard let self else {
+            guard let self = self else {
                 return
             }
+
 
             let elapsed =
                 Int(
@@ -112,8 +129,10 @@ final class PiPManager: NSObject, ObservableObject {
                     )
                 )
 
+
             let minutes = elapsed / 60
             let seconds = elapsed % 60
+
 
             let text =
                 String(
@@ -122,12 +141,14 @@ final class PiPManager: NSObject, ObservableObject {
                     seconds
                 )
 
+
             self.frameProvider?.update(
                 text: text
             )
         }
 
-        if let renderTimer {
+
+        if let renderTimer = renderTimer {
 
             RunLoop.main.add(
                 renderTimer,
@@ -139,7 +160,8 @@ final class PiPManager: NSObject, ObservableObject {
 
     func startPiP() {
 
-        guard let pipController else {
+        guard let pipController = pipController else {
+
             status = "Controller não criado"
             return
         }
@@ -148,24 +170,33 @@ final class PiPManager: NSObject, ObservableObject {
         status = "Preparando PiP..."
 
 
-        // Espera alguns frames serem processados
+        // Espera os frames serem enviados ao display layer
         DispatchQueue.main.asyncAfter(
-            deadline: .now() + 2.0
-        ) {
+            deadline: .now() + 3.0
+        ) { [weak self] in
+
+            guard let self = self else {
+                return
+            }
+
 
             let possible =
                 pipController.isPictureInPicturePossible
+
 
             let supported =
                 AVPictureInPictureController
                     .isPictureInPictureSupported()
 
+
             let layerStatus =
                 self.displayLayer.status.rawValue
+
 
             let ready =
                 self.displayLayer
                     .isReadyForMoreMediaData
+
 
             let error =
                 self.displayLayer.error?
@@ -177,9 +208,12 @@ final class PiPManager: NSObject, ObservableObject {
             print("========== PiP DEBUG ==========")
             print("SUPPORTED:", supported)
             print("POSSIBLE:", possible)
+            print("PIP CONTROLLER:", self.pipController != nil)
             print("LAYER STATUS:", layerStatus)
             print("READY:", ready)
             print("ERROR:", error)
+            print("DISPLAY LAYER:", self.displayLayer)
+            print("FRAME PROVIDER:", self.frameProvider != nil)
             print("================================")
             print("")
 
@@ -195,7 +229,6 @@ final class PiPManager: NSObject, ObservableObject {
                 self.status = """
                 PiP indisponível
 
-                Sup: \(supported)
                 Poss: \(possible)
                 Layer: \(layerStatus)
                 Ready: \(ready)
@@ -224,6 +257,7 @@ final class PiPManager: NSObject, ObservableObject {
 extension PiPManager:
     AVPictureInPictureControllerDelegate {
 
+
     func pictureInPictureControllerDidStartPictureInPicture(
         _ pictureInPictureController: AVPictureInPictureController
     ) {
@@ -244,7 +278,7 @@ extension PiPManager:
         DispatchQueue.main.async {
 
             self.status =
-                "Erro: \(error.localizedDescription)"
+                "Erro PiP: \(error.localizedDescription)"
         }
     }
 
@@ -309,11 +343,12 @@ extension PiPManager:
     }
 
 
-    // NOVO MÉTODO EXIGIDO PELO XCODE/iOS SDK
+    // Método obrigatório nas versões novas do SDK
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         didTransitionToRenderSize newRenderSize: CMVideoDimensions
     ) {
+
         print(
             "PiP mudou para:",
             newRenderSize.width,
