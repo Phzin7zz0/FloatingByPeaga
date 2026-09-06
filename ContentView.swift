@@ -10,12 +10,30 @@ struct ContentView: View {
 
         VStack(spacing: 20) {
 
-            // Preview REAL do conteúdo que será enviado ao PiP
-            PiPDisplayView(
-                displayLayer: pipManager.displayLayer
-            )
+            // PREVIEW PARA TESTAR O CONTEÚDO DO PiP
+            ZStack {
+
+                Color.gray
+
+                PiPDisplayView(
+                    displayLayer: pipManager.displayLayer
+                )
+
+                VStack {
+
+                    Text("PREVIEW DO PiP")
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+
+                    Spacer()
+                }
+                .padding(8)
+            }
             .frame(height: 180)
-            .background(Color.black)
+            .overlay(
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(Color.red, lineWidth: 3)
+            )
             .cornerRadius(15)
 
 
@@ -105,6 +123,7 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
             }
 
+
             Spacer()
         }
         .padding()
@@ -112,7 +131,7 @@ struct ContentView: View {
 }
 
 
-// MARK: - UIView que hospeda o AVSampleBufferDisplayLayer
+// MARK: - View que mostra o conteúdo enviado ao PiP
 
 struct PiPDisplayView: UIViewRepresentable {
 
@@ -126,6 +145,8 @@ struct PiPDisplayView: UIViewRepresentable {
         let view = UIView()
 
         view.backgroundColor = .black
+
+        displayLayer.videoGravity = .resizeAspect
 
         view.layer.addSublayer(
             displayLayer
