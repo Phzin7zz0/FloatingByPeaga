@@ -8,7 +8,9 @@ final class PiPFrameProvider {
     private let displayLayer: AVSampleBufferDisplayLayer
 
     private var frameCount: Int64 = 0
-    private let timescale: CMTimeScale = 30
+    private let timescale: CMTimeScale = 600
+
+    private var startTime: CMTime?
 
 
     init(displayLayer: AVSampleBufferDisplayLayer) {
@@ -25,14 +27,14 @@ final class PiPFrameProvider {
                     TimerRenderer.createPixelBuffer(text: text)
             else {
 
-                print("❌ ERRO: PixelBuffer não criado")
+                print("❌ PixelBuffer não criado")
                 return
             }
 
 
             var formatDescription: CMVideoFormatDescription?
 
-            let formatStatus =
+            let formatResult =
                 CMVideoFormatDescriptionCreateForImageBuffer(
                     allocator: kCFAllocatorDefault,
                     imageBuffer: pixelBuffer,
@@ -40,26 +42,39 @@ final class PiPFrameProvider {
                 )
 
 
-            guard formatStatus == noErr,
+            guard formatResult == noErr,
                   let formatDescription = formatDescription
             else {
 
-                print("❌ ERRO: FormatDescription")
+                print("❌ FormatDescription falhou")
                 return
             }
 
 
+            // Timestamp baseado no tempo atual
+            let currentTime =
+                CMClockGetTime(
+                    CMClockGetHostTimeClock()
+                )
+
+
+            if startTime == nil {
+
+                startTime = currentTime
+            }
+
+
             let presentationTime =
-                CMTime(
-                    value: frameCount,
-                    timescale: timescale
+                CMTimeSubtract(
+                    currentTime,
+                    startTime!
                 )
 
 
             let duration =
                 CMTime(
                     value: 1,
-                    timescale: timescale
+                    timescale: 30
                 )
 
 
@@ -88,24 +103,22 @@ final class PiPFrameProvider {
                   let sampleBuffer = sampleBuffer
             else {
 
-                print("❌ ERRO: SampleBuffer")
+                print("❌ SampleBuffer falhou")
                 return
             }
 
 
-            // Envia o frame para o PiP
             if displayLayer.isReadyForMoreMediaData {
 
-                displayLayer.enqueue(sampleBuffer)
+                displayLayer.enqueue(
+                    sampleBuffer
+                )
 
                 frameCount += 1
 
             } else {
 
-                // Não fica travado: avança o contador
-                frameCount += 1
-
-                print("⚠️ Layer temporariamente não pronto")
+                print("⚠️ DisplayLayer não está pronto")
             }
         }
     }
@@ -116,5 +129,7 @@ final class PiPFrameProvider {
         displayLayer.flush()
 
         frameCount = 0
+
+        startTime = nil
     }
 }
