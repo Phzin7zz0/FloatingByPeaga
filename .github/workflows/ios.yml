@@ -31,7 +31,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Criar IPA corretamente
+            - name: Criar IPA corretamente
         run: |
           APP_PATH=$(find build/Build/Products/Release-iphoneos -type d -name "*.app" | head -n 1)
 
@@ -42,12 +42,27 @@ jobs:
           rm -f FloatingByPeaga.ipa
 
           mkdir -p Payload
-
           cp -R "$APP_PATH" Payload/
 
-          cd .
-
           ditto -c -k --sequesterRsrc --keepParent Payload FloatingByPeaga.ipa
+
+          echo "===== TESTANDO ====="
+          unzip -t FloatingByPeaga.ipa
+
+          echo "===== ESTRUTURA ====="
+          unzip -l FloatingByPeaga.ipa
+
+          echo "===== TIPO DO ARQUIVO ====="
+          file FloatingByPeaga.ipa
+
+          echo "===== INFO.PLIST ====="
+          plutil -p Payload/FloatingByPeaga.app/Info.plist
+
+          echo "===== TAMANHO ====="
+          ls -lh FloatingByPeaga.ipa
+
+          echo "===== SHA256 ====="
+          shasum -a 256 FloatingByPeaga.ipa
 
           echo "===== TESTANDO ====="
           unzip -t FloatingByPeaga.ipa
