@@ -58,7 +58,7 @@ enum TimerRenderer {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
         context.setFillColor(UIColor.red.cgColor)
-        context.fill(CGRect(x: 10, y: 10, width: width - 20, height - 20))
+        context.fill(CGRect(x: 10, y: 10, width: width - 20, height: height - 20))
 
         UIGraphicsPushContext(context)
 
