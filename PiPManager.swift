@@ -1,25 +1,33 @@
 import Foundation
 import AVFoundation
 import AVKit
+import UIKit
 
 final class PiPManager: NSObject, ObservableObject {
 
     @Published var isPiPActive = false
-    @Published var status = "Preparando PiP..."
+    @Published var status = "Inicializando..."
 
     let displayLayer = AVSampleBufferDisplayLayer()
 
     private var pipController: AVPictureInPictureController?
+    private var frameProvider: PiPFrameProvider?
+
+    private var renderTimer: Timer?
+    private var seconds: Int = 0
 
     override init() {
         super.init()
-        setupPiP()
+
+        DispatchQueue.main.async {
+            self.setupPiP()
+        }
     }
 
     private func setupPiP() {
 
         guard AVPictureInPictureController.isPictureInPictureSupported() else {
-            status = "PiP não suportado neste ambiente"
+            status = "PiP não suportado neste dispositivo"
             return
         }
 
@@ -32,33 +40,124 @@ final class PiPManager: NSObject, ObservableObject {
                 )
 
             pipController =
-                AVPictureInPictureController(contentSource: contentSource)
+                AVPictureInPictureController(
+                    contentSource: contentSource
+                )
 
             pipController?.delegate = self
-            pipController?.canStartPictureInPictureAutomaticallyFromInline = false
+
+            pipController?
+                .canStartPictureInPictureAutomaticallyFromInline = false
+
             pipController?.requiresLinearPlayback = false
 
+            frameProvider = PiPFrameProvider(
+                displayLayer: displayLayer
+            )
+
+            displayLayer.videoGravity = .resizeAspect
+
             status = "PiP configurado"
+
+            // FRAME INICIAL
+            frameProvider?.update(text: "00:00")
         }
     }
+
+
+    // MARK: - ABRIR PIP
 
     func startPiP() {
 
-        guard let pipController else {
-            status = "Erro: PiP Controller não criado"
-            return
-        }
+        DispatchQueue.main.async {
 
-        if pipController.isPictureInPicturePossible {
-            status = "Abrindo janela..."
-            pipController.startPictureInPicture()
-        } else {
-            status = "PiP ainda não está disponível"
+            guard let pipController = self.pipController else {
+                self.status = "Erro: PiP Controller não criado"
+                return
+            }
+
+            self.status = "Preparando janela..."
+
+            // Reinicia o display
+            self.frameProvider?.reset()
+
+            // Envia alguns frames antes de abrir
+            for _ in 0..<5 {
+                self.frameProvider?.update(
+                    text: self.formattedTime()
+                )
+            }
+
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.3
+            ) {
+
+                print(
+                    "PiP possível:",
+                    pipController.isPictureInPicturePossible
+                )
+
+                self.status =
+                    pipController.isPictureInPicturePossible
+                    ? "Abrindo janela..."
+                    : "PiP ainda não disponível"
+
+                pipController.startPictureInPicture()
+
+                self.startFrameUpdates()
+            }
         }
     }
 
+
+    // MARK: - ATUALIZAR FRAMES
+
+    private func startFrameUpdates() {
+
+        renderTimer?.invalidate()
+
+        renderTimer = Timer.scheduledTimer(
+            withTimeInterval: 1.0 / 30.0,
+            repeats: true
+        ) { [weak self] _ in
+
+            guard let self = self else { return }
+
+            self.frameProvider?.update(
+                text: self.formattedTime()
+            )
+        }
+    }
+
+
+    // MARK: - FORMATAR TEMPO
+
+    private func formattedTime() -> String {
+
+        let minutes = seconds / 60
+        let secs = seconds % 60
+
+        return String(
+            format: "%02d:%02d",
+            minutes,
+            secs
+        )
+    }
+
+
+    // MARK: - FECHAR PIP
+
     func stopPiP() {
+
+        renderTimer?.invalidate()
+        renderTimer = nil
+
         pipController?.stopPictureInPicture()
+    }
+
+
+    deinit {
+        renderTimer?.invalidate()
     }
 }
 
@@ -70,27 +169,54 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
     func pictureInPictureControllerWillStartPictureInPicture(
         _ pictureInPictureController: AVPictureInPictureController
     ) {
+
         DispatchQueue.main.async {
             self.isPiPActive = true
-            self.status = "PiP ativo!"
+            self.status = "PiP iniciando..."
         }
     }
+
+
+    func pictureInPictureControllerDidStartPictureInPicture(
+        _ pictureInPictureController: AVPictureInPictureController
+    ) {
+
+        DispatchQueue.main.async {
+            self.isPiPActive = true
+            self.status = "Janela flutuante aberta!"
+        }
+    }
+
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         failedToStartPictureInPictureWithError error: Error
     ) {
+
         DispatchQueue.main.async {
-            self.status = "Erro PiP: \(error.localizedDescription)"
+
+            print("ERRO PIP:", error)
+
+            self.status =
+                "Erro PiP: \(error.localizedDescription)"
+
+            self.renderTimer?.invalidate()
+            self.renderTimer = nil
         }
     }
+
 
     func pictureInPictureControllerDidStopPictureInPicture(
         _ pictureInPictureController: AVPictureInPictureController
     ) {
+
         DispatchQueue.main.async {
+
             self.isPiPActive = false
             self.status = "PiP fechado"
+
+            self.renderTimer?.invalidate()
+            self.renderTimer = nil
         }
     }
 }
@@ -99,38 +225,48 @@ extension PiPManager: AVPictureInPictureControllerDelegate {
 // MARK: - Playback Delegate
 
 @available(iOS 15.0, *)
-extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
+extension PiPManager:
+    AVPictureInPictureSampleBufferPlaybackDelegate {
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         setPlaying playing: Bool
-    ) {}
+    ) {
+    }
+
 
     func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController: AVPictureInPictureController
     ) -> CMTimeRange {
-        CMTimeRange(
+
+        return CMTimeRange(
             start: .zero,
             duration: .positiveInfinity
         )
     }
 
+
     func pictureInPictureControllerIsPlaybackPaused(
         _ pictureInPictureController: AVPictureInPictureController
     ) -> Bool {
-        false
+
+        return false
     }
+
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         didTransitionToRenderSize newRenderSize: CMVideoDimensions
-    ) {}
+    ) {
+    }
+
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         skipByInterval skipInterval: CMTime,
         completion completionHandler: @escaping @Sendable () -> Void
     ) {
+
         completionHandler()
     }
 }
