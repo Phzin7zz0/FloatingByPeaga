@@ -5,8 +5,7 @@ import CoreMedia
 final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
-    private var frameCount: Int64 = 0
-    private let frameRate: Int32 = 30
+    private var startTime: CMTime?
 
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
@@ -15,33 +14,41 @@ final class PiPFrameProvider {
     func update(text: String) {
 
         guard let pixelBuffer = TimerRenderer.createPixelBuffer(text: text) else {
-            print("Erro ao criar PixelBuffer")
             return
         }
 
         var formatDescription: CMVideoFormatDescription?
 
-        let formatStatus = CMVideoFormatDescriptionCreateForImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: pixelBuffer,
-            formatDescriptionOut: &formatDescription
-        )
+        let formatStatus =
+            CMVideoFormatDescriptionCreateForImageBuffer(
+                allocator: kCFAllocatorDefault,
+                imageBuffer: pixelBuffer,
+                formatDescriptionOut: &formatDescription
+            )
 
         guard formatStatus == noErr,
-              let formatDescription = formatDescription else {
-            print("Erro ao criar FormatDescription")
+              let formatDescription else {
             return
         }
 
-        let presentationTime = CMTime(
-            value: frameCount,
-            timescale: frameRate
-        )
+        // Tempo baseado no relógio do sistema
+        let currentTime = CMClockGetTime(CMClockGetHostTimeClock())
+
+        if startTime == nil {
+            startTime = currentTime
+        }
+
+        guard let startTime else {
+            return
+        }
+
+        let presentationTime =
+            CMTimeSubtract(currentTime, startTime)
 
         var timingInfo = CMSampleTimingInfo(
             duration: CMTime(
                 value: 1,
-                timescale: frameRate
+                timescale: 30
             ),
             presentationTimeStamp: presentationTime,
             decodeTimeStamp: .invalid
@@ -49,36 +56,27 @@ final class PiPFrameProvider {
 
         var sampleBuffer: CMSampleBuffer?
 
-        let sampleStatus = CMSampleBufferCreateReadyWithImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: pixelBuffer,
-            formatDescription: formatDescription,
-            sampleTiming: &timingInfo,
-            sampleBufferOut: &sampleBuffer
-        )
+        let result =
+            CMSampleBufferCreateReadyWithImageBuffer(
+                allocator: kCFAllocatorDefault,
+                imageBuffer: pixelBuffer,
+                formatDescription: formatDescription,
+                sampleTiming: &timingInfo,
+                sampleBufferOut: &sampleBuffer
+            )
 
-        guard sampleStatus == noErr,
-              let sampleBuffer = sampleBuffer else {
-            print("Erro ao criar SampleBuffer")
+        guard result == noErr,
+              let sampleBuffer else {
             return
         }
 
-        if displayLayer.status == .failed {
-            print("DisplayLayer falhou:", displayLayer.error?.localizedDescription ?? "Erro desconhecido")
-            displayLayer.flush()
+        if displayLayer.isReadyForMoreMediaData {
+            displayLayer.enqueue(sampleBuffer)
         }
-
-        guard displayLayer.isReadyForMoreMediaData else {
-            return
-        }
-
-        displayLayer.enqueue(sampleBuffer)
-
-        frameCount += 1
     }
 
     func reset() {
         displayLayer.flush()
-        frameCount = 0
+        startTime = nil
     }
 }
