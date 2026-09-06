@@ -10,7 +10,8 @@ enum TimerRenderer {
 
         let attributes: [String: Any] = [
             kCVPixelBufferCGImageCompatibilityKey as String: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
         ]
 
         var pixelBuffer: CVPixelBuffer?
@@ -26,46 +27,75 @@ enum TimerRenderer {
 
         guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
-            print("ERRO AO CRIAR PIXEL BUFFER")
+            print("❌ ERRO AO CRIAR PIXEL BUFFER")
             return nil
         }
 
         CVPixelBufferLockBaseAddress(buffer, [])
 
-        defer {
-            CVPixelBufferUnlockBaseAddress(buffer, [])
-        }
-
         guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
-            print("SEM BASE ADDRESS")
+            CVPixelBufferUnlockBaseAddress(buffer, [])
+            print("❌ SEM BASE ADDRESS")
             return nil
         }
+
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
 
         guard let context = CGContext(
             data: baseAddress,
             width: width,
             height: height,
             bitsPerComponent: 8,
-            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+            bytesPerRow: bytesPerRow,
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
         ) else {
-            print("ERRO AO CRIAR CONTEXT")
+            CVPixelBufferUnlockBaseAddress(buffer, [])
+            print("❌ ERRO AO CRIAR CONTEXT")
             return nil
         }
 
-        context.setFillColor(UIColor.black.cgColor)
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        // Fundo
+        context.setFillColor(
+            red: 0.05,
+            green: 0.05,
+            blue: 0.05,
+            alpha: 1.0
+        )
 
-        context.setFillColor(UIColor.red.cgColor)
-        context.fill(CGRect(x: 10, y: 10, width: width - 20, height: height - 20))
+        context.fill(
+            CGRect(
+                x: 0,
+                y: 0,
+                width: width,
+                height: height
+            )
+        )
 
+        // Caixa vermelha - TESTE VISUAL
+        context.setFillColor(
+            red: 1,
+            green: 0,
+            blue: 0,
+            alpha: 1
+        )
+
+        context.fill(
+            CGRect(
+                x: 10,
+                y: 10,
+                width: width - 20,
+                height: height - 20
+            )
+        )
+
+        // Texto
         UIGraphicsPushContext(context)
 
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
 
-        let textAttributes: [NSAttributedString.Key: Any] = [
+        let attributesText: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(
                 ofSize: 110,
                 weight: .bold
@@ -83,12 +113,14 @@ enum TimerRenderer {
 
         text.draw(
             in: textRect,
-            withAttributes: textAttributes
+            withAttributes: attributesText
         )
 
         UIGraphicsPopContext()
 
-        print("FRAME CRIADO:", text)
+        CVPixelBufferUnlockBaseAddress(buffer, [])
+
+        print("✅ FRAME CRIADO:", text)
 
         return buffer
     }
