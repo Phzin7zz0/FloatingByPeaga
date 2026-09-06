@@ -24,6 +24,8 @@ final class PiPManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - CONFIGURAR PIP
+
     private func setupPiP() {
 
         guard AVPictureInPictureController.isPictureInPictureSupported() else {
@@ -55,10 +57,9 @@ final class PiPManager: NSObject, ObservableObject {
             pipController?.delegate = self
             pipController?.requiresLinearPlayback = false
 
-            // COMEÇA A GERAR FRAMES IMEDIATAMENTE
             startFrameUpdates()
 
-            status = "Aguardando PiP ficar disponível..."
+            status = "PiP configurado"
         }
     }
 
@@ -76,7 +77,9 @@ final class PiPManager: NSObject, ObservableObject {
             repeats: true
         ) { [weak self] _ in
 
-            guard let self else { return }
+            guard let self = self else {
+                return
+            }
 
             let elapsed = Int(
                 Date().timeIntervalSince(self.startTime)
@@ -94,10 +97,12 @@ final class PiPManager: NSObject, ObservableObject {
             self.frameProvider?.update(text: text)
         }
 
-        RunLoop.main.add(
-            renderTimer!,
-            forMode: .common
-        )
+        if let renderTimer {
+            RunLoop.main.add(
+                renderTimer,
+                forMode: .common
+            )
+        }
     }
 
 
@@ -106,46 +111,44 @@ final class PiPManager: NSObject, ObservableObject {
     func startPiP() {
 
         guard let pipController else {
-            status = "Erro: PiP Controller não criado"
+            status = "ERRO: Controller nil"
             return
         }
 
-        status = "Verificando PiP..."
+        let supported =
+            AVPictureInPictureController.isPictureInPictureSupported()
 
-        // Força mais alguns frames
-        for _ in 0..<30 {
-            frameProvider?.update(text: "00:00")
-        }
+        let possible =
+            pipController.isPictureInPicturePossible
 
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 1.0
-        ) {
+        print("========== PiP DEBUG ==========")
+        print("SUPPORTED:", supported)
+        print("POSSIBLE:", possible)
+        print("LAYER STATUS:", displayLayer.status.rawValue)
+        print(
+            "LAYER ERROR:",
+            displayLayer.error?.localizedDescription ?? "nenhum"
+        )
+        print(
+            "READY:",
+            displayLayer.isReadyForMoreMediaData
+        )
+        print("================================")
 
-            print(
-                "PiP Supported:",
-                AVPictureInPictureController.isPictureInPictureSupported()
-            )
+        status = """
+        Sup: \(supported)
+        Poss: \(possible)
+        Layer: \(displayLayer.status.rawValue)
+        """
 
-            print(
-                "PiP Possible:",
-                pipController.isPictureInPicturePossible
-            )
-
-            if pipController.isPictureInPicturePossible {
-
-                self.status = "Abrindo janela..."
-
-                pipController.startPictureInPicture()
-
-            } else {
-
-                self.status = "PiP ainda não disponível"
-            }
+        if possible {
+            status = "Abrindo janela..."
+            pipController.startPictureInPicture()
         }
     }
 
 
-    // MARK: - FECHAR
+    // MARK: - FECHAR PIP
 
     func stopPiP() {
 
