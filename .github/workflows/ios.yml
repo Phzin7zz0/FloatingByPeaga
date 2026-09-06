@@ -11,7 +11,6 @@ jobs:
     runs-on: macos-latest
 
     steps:
-
       - name: Baixar projeto
         uses: actions/checkout@v4
 
@@ -32,7 +31,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-                  - name: Criar IPA
+      - name: Criar IPA
         run: |
           APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -type d -name "*.app" | head -n 1)
 
@@ -58,15 +57,6 @@ jobs:
 
           echo "===== ARQUIVO FINAL ====="
           ls -lh FloatingByPeaga.ipa
-
-          echo "===== VERIFICANDO ARQUIVO ====="
-          file FloatingByPeaga.ipa
-
-          echo "===== VERIFICANDO ZIP ====="
-          unzip -t FloatingByPeaga.ipa
-
-          echo "===== ESTRUTURA ====="
-          unzip -l FloatingByPeaga.ipa | head -30
 
       - name: Enviar IPA
         uses: actions/upload-artifact@v4
