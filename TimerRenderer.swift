@@ -26,7 +26,7 @@ enum TimerRenderer {
 
         guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
-            print("Erro ao criar PixelBuffer")
+            print("ERRO AO CRIAR PIXEL BUFFER")
             return nil
         }
 
@@ -37,7 +37,7 @@ enum TimerRenderer {
         }
 
         guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
-            print("BaseAddress inválido")
+            print("SEM BASE ADDRESS")
             return nil
         }
 
@@ -50,33 +50,15 @@ enum TimerRenderer {
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
         ) else {
-            print("Erro ao criar CGContext")
+            print("ERRO AO CRIAR CONTEXT")
             return nil
         }
 
-        // FUNDO PRETO
         context.setFillColor(UIColor.black.cgColor)
-        context.fill(
-            CGRect(
-                x: 0,
-                y: 0,
-                width: width,
-                height: height
-            )
-        )
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
-        // Borda para teste
-        context.setStrokeColor(UIColor.red.cgColor)
-        context.setLineWidth(4)
-
-        context.stroke(
-            CGRect(
-                x: 2,
-                y: 2,
-                width: width - 4,
-                height: height - 4
-            )
-        )
+        context.setFillColor(UIColor.red.cgColor)
+        context.fill(CGRect(x: 10, y: 10, width: width - 20, height - 20))
 
         UIGraphicsPushContext(context)
 
@@ -85,7 +67,7 @@ enum TimerRenderer {
 
         let textAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(
-                ofSize: 120,
+                ofSize: 110,
                 weight: .bold
             ),
             .foregroundColor: UIColor.white,
@@ -94,38 +76,19 @@ enum TimerRenderer {
 
         let textRect = CGRect(
             x: 0,
-            y: 100,
+            y: 110,
             width: width,
-            height: 150
+            height: 140
         )
 
-        // DESENHA O CRONÔMETRO
         text.draw(
             in: textRect,
             withAttributes: textAttributes
         )
 
-        // Texto pequeno para debug
-        let debugAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(
-                ofSize: 25,
-                weight: .medium
-            ),
-            .foregroundColor: UIColor.green,
-            .paragraphStyle: paragraphStyle
-        ]
-
-        "FLOATING TIMER".draw(
-            in: CGRect(
-                x: 0,
-                y: 260,
-                width: width,
-                height: 40
-            ),
-            withAttributes: debugAttributes
-        )
-
         UIGraphicsPopContext()
+
+        print("FRAME CRIADO:", text)
 
         return buffer
     }
