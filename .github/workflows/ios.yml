@@ -27,30 +27,29 @@ jobs:
             -scheme FloatingByPeaga \
             -sdk iphoneos \
             -configuration Release \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Ver arquivos compilados
+        run: |
+          echo "=== BUILD ==="
+          find build/Build/Products/Release-iphoneos -maxdepth 2 -type f
+
       - name: Criar IPA
         run: |
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/FloatingByPeaga.app" -type d | head -n 1)
-
-          echo "=== APP ENCONTRADO ==="
-          echo "$APP_PATH"
-
-          echo "=== CONTEÚDO DO APP ==="
-          ls -lah "$APP_PATH"
+          echo "=== CRIANDO IPA ==="
 
           mkdir -p Payload
-          cp -R "$APP_PATH" Payload/
 
-          echo "=== CRIANDO IPA ==="
-          /usr/bin/zip -r -y FloatingByPeaga.ipa Payload
+          cp -R \
+            build/Build/Products/Release-iphoneos/FloatingByPeaga.app \
+            Payload/
 
-          echo "=== VERIFICANDO IPA ==="
+          zip -qry FloatingByPeaga.ipa Payload
+
+          echo "=== VERIFICANDO ==="
           unzip -l FloatingByPeaga.ipa
-
-          echo "=== TAMANHO FINAL ==="
-          ls -lh FloatingByPeaga.ipa
 
           rm -rf Payload
 
