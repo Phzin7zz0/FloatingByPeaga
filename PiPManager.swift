@@ -86,7 +86,7 @@ extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
         _ pictureInPictureController: AVPictureInPictureController,
         setPlaying playing: Bool
     ) {
-        // Nosso cronômetro é conteúdo ao vivo.
+        // Cronômetro é conteúdo ao vivo
     }
 
     func pictureInPictureControllerTimeRangeForPlayback(
@@ -104,4 +104,20 @@ extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
     ) -> Bool {
         return false
     }
+
+    func pictureInPictureController(
+        _ pictureInPictureController: AVPictureInPictureController,
+        didTransitionToRenderSize newRenderSize: CMVideoDimensions
+    ) {
+        // Não precisamos fazer nada aqui
+    }
+
+    func pictureInPictureController(
+        _ pictureInPictureController: AVPictureInPictureController,
+        skipByInterval skipInterval: CMTime,
+        completion completionHandler: @escaping @Sendable () -> Void
+    ) {
+        completionHandler()
+    }
+}
 }
