@@ -307,4 +307,18 @@ extension PiPManager:
 
         completionHandler()
     }
+
+
+    // NOVO MÉTODO EXIGIDO PELO XCODE/iOS SDK
+    func pictureInPictureController(
+        _ pictureInPictureController: AVPictureInPictureController,
+        didTransitionToRenderSize newRenderSize: CMVideoDimensions
+    ) {
+        print(
+            "PiP mudou para:",
+            newRenderSize.width,
+            "x",
+            newRenderSize.height
+        )
+    }
 }
