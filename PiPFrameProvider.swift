@@ -6,8 +6,6 @@ final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
-    private var frameCount: Int64 = 0
-
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
     }
@@ -15,7 +13,7 @@ final class PiPFrameProvider {
     func update(text: String) {
 
         guard let pixelBuffer = TimerRenderer.createPixelBuffer(text: text) else {
-            print("ERRO: PixelBuffer não criado")
+            print("❌ PixelBuffer não criado")
             return
         }
 
@@ -28,25 +26,19 @@ final class PiPFrameProvider {
         )
 
         guard formatStatus == noErr,
-              let formatDescription = formatDescription else {
-            print("ERRO: FormatDescription")
+              let formatDescription else {
+            print("❌ FormatDescription não criado")
             return
         }
 
-        let presentationTime = CMTime(
-            value: frameCount,
-            timescale: 30
-        )
-
-        let duration = CMTime(
-            value: 1,
-            timescale: 30
+        let presentationTime = CMClockGetTime(
+            CMClockGetHostTimeClock()
         )
 
         var timingInfo = CMSampleTimingInfo(
-            duration: duration,
+            duration: CMTime.invalid,
             presentationTimeStamp: presentationTime,
-            decodeTimeStamp: .invalid
+            decodeTimeStamp: CMTime.invalid
         )
 
         var sampleBuffer: CMSampleBuffer?
@@ -60,13 +52,18 @@ final class PiPFrameProvider {
         )
 
         guard result == noErr,
-              let sampleBuffer = sampleBuffer else {
-            print("ERRO: SampleBuffer")
+              let sampleBuffer else {
+            print("❌ SampleBuffer não criado")
             return
         }
 
         if displayLayer.status == .failed {
-            print("DISPLAY LAYER FALHOU:", displayLayer.error?.localizedDescription ?? "erro desconhecido")
+
+            print(
+                "⚠️ DISPLAY LAYER FALHOU:",
+                displayLayer.error?.localizedDescription ?? "erro desconhecido"
+            )
+
             displayLayer.flush()
         }
 
@@ -74,13 +71,11 @@ final class PiPFrameProvider {
 
             displayLayer.enqueue(sampleBuffer)
 
-            frameCount += 1
-
-            print("FRAME ENVIADO:", text)
+            print("✅ FRAME ENVIADO:", text)
 
         } else {
 
-            print("LAYER NÃO ESTÁ PRONTO")
+            print("⚠️ LAYER NÃO ESTÁ PRONTO")
         }
     }
 
@@ -88,6 +83,6 @@ final class PiPFrameProvider {
 
         displayLayer.flush()
 
-        frameCount = 0
+        print("🔄 DISPLAY LAYER RESETADO")
     }
 }
