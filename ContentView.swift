@@ -17,7 +17,8 @@ struct ContentView: View {
                     .fontWeight(.bold)
 
 
-                // PREVIEW REAL DO PiP
+                // MARK: - Preview do PiP
+
                 VStack(spacing: 10) {
 
                     Text("Preview do PiP")
@@ -26,18 +27,21 @@ struct ContentView: View {
                     PiPDisplayView(
                         displayLayer: pipManager.displayLayer
                     )
-                    .frame(width: 320, height: 180)
+                    .frame(
+                        width: 320,
+                        height: 180
+                    )
                     .background(Color.black)
                     .clipShape(
                         RoundedRectangle(
                             cornerRadius: 15
                         )
                     )
-
                 }
 
 
-                // CRONÔMETRO PRINCIPAL
+                // MARK: - Cronômetro principal
+
                 Text(timerManager.formattedTime)
                     .font(
                         .system(
@@ -48,39 +52,54 @@ struct ContentView: View {
                     )
 
 
-                // STATUS
+                // MARK: - Status
+
                 Text(pipManager.status)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
 
 
-                // BOTÕES DO CRONÔMETRO
+                // MARK: - Botões do cronômetro
+
                 HStack(spacing: 15) {
 
-                    Button("Iniciar") {
+                    Button {
 
                         timerManager.start()
+
+                    } label: {
+
+                        Text("Iniciar")
                     }
                     .buttonStyle(.borderedProminent)
 
 
-                    Button("Pausar") {
+                    Button {
 
                         timerManager.pause()
+
+                    } label: {
+
+                        Text("Pausar")
                     }
                     .buttonStyle(.bordered)
 
 
-                    Button("Resetar") {
+                    Button {
 
                         timerManager.reset()
+
+                    } label: {
+
+                        Text("Resetar")
                     }
                     .buttonStyle(.bordered)
                 }
 
 
-                // ABRIR PIP
+                // MARK: - Abrir PiP
+
                 Button {
 
                     pipManager.startPiP()
@@ -109,7 +128,8 @@ struct ContentView: View {
                 .padding(.horizontal)
 
 
-                // FECHAR PIP
+                // MARK: - Fechar PiP
+
                 if pipManager.isPiPActive {
 
                     Button {
@@ -141,6 +161,15 @@ struct ContentView: View {
             }
             .padding()
         }
+
+        // MARK: - CONECTA O CRONÔMETRO AO PiP
+
+        .onAppear {
+
+            pipManager.connectTimer(
+                timerManager
+            )
+        }
     }
 }
 
@@ -161,15 +190,15 @@ struct PiPDisplayView: UIViewRepresentable {
         view.backgroundColor = .black
 
 
-        displayLayer.frame = view.bounds
-
-        displayLayer.videoGravity =
-            .resizeAspect
-
-
+        // Adiciona a camada do PiP
         view.layer.addSublayer(
             displayLayer
         )
+
+
+        // Configuração visual
+        displayLayer.videoGravity =
+            .resizeAspect
 
 
         DispatchQueue.main.async {
@@ -188,10 +217,7 @@ struct PiPDisplayView: UIViewRepresentable {
         context: Context
     ) {
 
-        DispatchQueue.main.async {
-
-            displayLayer.frame =
-                uiView.bounds
-        }
+        displayLayer.frame =
+            uiView.bounds
     }
 }
