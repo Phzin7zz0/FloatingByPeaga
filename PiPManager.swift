@@ -17,6 +17,7 @@ final class PiPManager: NSObject, ObservableObject {
     private var startTime = Date()
     private var hasStartedRendering = false
 
+
     override init() {
         super.init()
 
@@ -37,7 +38,7 @@ final class PiPManager: NSObject, ObservableObject {
 
         status = "Configurando PiP..."
 
-        // Configura sessão de áudio necessária para reprodução em background
+        // Áudio necessário para PiP/background
         do {
             let audioSession = AVAudioSession.sharedInstance()
 
@@ -54,12 +55,20 @@ final class PiPManager: NSObject, ObservableObject {
             return
         }
 
+
+        // CONFIGURA DISPLAY LAYER
+
+        displayLayer.flush()
         displayLayer.videoGravity = .resizeAspect
         displayLayer.backgroundColor = UIColor.black.cgColor
+
+
+        // FRAME PROVIDER
 
         frameProvider = PiPFrameProvider(
             displayLayer: displayLayer
         )
+
 
         if #available(iOS 15.0, *) {
 
@@ -69,21 +78,44 @@ final class PiPManager: NSObject, ObservableObject {
                     playbackDelegate: self
                 )
 
-            pipController = AVPictureInPictureController(
-                contentSource: contentSource
-            )
+            pipController =
+                AVPictureInPictureController(
+                    contentSource: contentSource
+                )
 
             pipController?.delegate = self
-            pipController?.requiresLinearPlayback = false
-            pipController?.canStartPictureInPictureAutomaticallyFromInline = false
 
-            // Envia o primeiro frame imediatamente
+            pipController?.requiresLinearPlayback = false
+
+            pipController?
+                .canStartPictureInPictureAutomaticallyFromInline = false
+
+
+            // Envia vários frames iniciais
+
             frameProvider?.update(text: "00:00")
 
-            // Começa a gerar frames continuamente
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.1
+            ) {
+                self.frameProvider?.update(text: "00:00")
+            }
+
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.2
+            ) {
+                self.frameProvider?.update(text: "00:00")
+            }
+
+
+            // Começa renderização contínua
+
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.3
+            ) {
                 self.startFrameUpdates()
             }
+
 
             status = "PiP configurado"
         }
@@ -104,32 +136,39 @@ final class PiPManager: NSObject, ObservableObject {
 
         startTime = Date()
 
+
         renderTimer = Timer.scheduledTimer(
             withTimeInterval: 1.0 / 30.0,
             repeats: true
         ) { [weak self] _ in
 
-            guard let self = self else {
+            guard let self else {
                 return
             }
 
-            let elapsed = Int(
-                Date().timeIntervalSince(self.startTime)
-            )
+            let elapsed =
+                Int(
+                    Date().timeIntervalSince(
+                        self.startTime
+                    )
+                )
 
             let minutes = elapsed / 60
             let seconds = elapsed % 60
 
-            let text = String(
-                format: "%02d:%02d",
-                minutes,
-                seconds
-            )
+            let text =
+                String(
+                    format: "%02d:%02d",
+                    minutes,
+                    seconds
+                )
 
             self.frameProvider?.update(text: text)
         }
 
+
         if let renderTimer {
+
             RunLoop.main.add(
                 renderTimer,
                 forMode: .common
@@ -147,67 +186,73 @@ final class PiPManager: NSObject, ObservableObject {
             return
         }
 
-        let supported =
-            AVPictureInPictureController.isPictureInPictureSupported()
 
-        // Garante que existe um frame recente antes de testar
-        let elapsed = Int(
-            Date().timeIntervalSince(startTime)
-        )
+        let supported =
+            AVPictureInPictureController
+                .isPictureInPictureSupported()
+
+
+        // Gera frame imediatamente
+
+        let elapsed =
+            Int(
+                Date().timeIntervalSince(
+                    startTime
+                )
+            )
 
         let minutes = elapsed / 60
         let seconds = elapsed % 60
 
-        let text = String(
-            format: "%02d:%02d",
-            minutes,
-            seconds
-        )
+        let text =
+            String(
+                format: "%02d:%02d",
+                minutes,
+                seconds
+            )
 
         frameProvider?.update(text: text)
 
-        // Dá tempo para o sistema processar o frame
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+
+        // Aguarda sistema processar os frames
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 1.0
+        ) {
 
             let possible =
                 pipController.isPictureInPicturePossible
 
-            print("========== PiP DEBUG ==========")
-            print("SUPPORTED:", supported)
-            print("POSSIBLE:", possible)
-            print(
-                "LAYER STATUS:",
+            let layerStatus =
                 self.displayLayer.status.rawValue
-            )
-            print(
-                "LAYER ERROR:",
-                self.displayLayer.error?.localizedDescription
-                    ?? "nenhum"
-            )
-            print(
-                "READY:",
+
+            let layerReady =
                 self.displayLayer.isReadyForMoreMediaData
-            )
-            print("================================")
 
-            DispatchQueue.main.async {
+            let layerError =
+                self.displayLayer.error?
+                    .localizedDescription
+                ?? "Nenhum"
 
-                if possible {
 
-                    self.status = "Abrindo janela..."
+            if possible {
 
-                    pipController.startPictureInPicture()
+                self.status =
+                    "Abrindo janela..."
 
-                } else {
+                pipController.startPictureInPicture()
 
-                    self.status = """
-                    PiP ainda indisponível
+            } else {
 
-                    Sup: \(supported)
-                    Poss: false
-                    Layer: \(self.displayLayer.status.rawValue)
-                    """
-                }
+                self.status = """
+                PiP ainda indisponível
+
+                Sup: \(supported)
+                Poss: \(possible)
+                Layer: \(layerStatus)
+                Ready: \(layerReady)
+                Error: \(layerError)
+                """
             }
         }
     }
@@ -239,7 +284,8 @@ extension PiPManager:
 
         DispatchQueue.main.async {
 
-            self.status = "Abrindo janela..."
+            self.status =
+                "Abrindo janela..."
         }
     }
 
@@ -251,7 +297,9 @@ extension PiPManager:
         DispatchQueue.main.async {
 
             self.isPiPActive = true
-            self.status = "Janela flutuante aberta!"
+
+            self.status =
+                "Janela flutuante aberta!"
         }
     }
 
@@ -265,11 +313,6 @@ extension PiPManager:
 
             self.status =
                 "Erro PiP: \(error.localizedDescription)"
-
-            print(
-                "ERRO PiP:",
-                error.localizedDescription
-            )
         }
     }
 
@@ -281,7 +324,9 @@ extension PiPManager:
         DispatchQueue.main.async {
 
             self.isPiPActive = false
-            self.status = "PiP fechado"
+
+            self.status =
+                "PiP fechado"
         }
     }
 }
@@ -329,7 +374,8 @@ extension PiPManager:
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
         skipByInterval skipInterval: CMTime,
-        completion completionHandler: @escaping @Sendable () -> Void
+        completion completionHandler:
+            @escaping @Sendable () -> Void
     ) {
 
         completionHandler()
