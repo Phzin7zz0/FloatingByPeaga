@@ -1,85 +1,112 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import CoreVideo
 
 final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
     private var frameCount: Int64 = 0
+    private let timescale: CMTimeScale = 30
+
 
     init(displayLayer: AVSampleBufferDisplayLayer) {
+
         self.displayLayer = displayLayer
     }
 
+
     func update(text: String) {
 
-        guard let pixelBuffer =
-                TimerRenderer.createPixelBuffer(text: text)
-        else {
-            print("ERRO: PixelBuffer não criado")
-            return
-        }
+        autoreleasepool {
 
-        var formatDescription: CMVideoFormatDescription?
+            guard let pixelBuffer =
+                    TimerRenderer.createPixelBuffer(text: text)
+            else {
 
-        let formatStatus =
-            CMVideoFormatDescriptionCreateForImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: pixelBuffer,
-                formatDescriptionOut: &formatDescription
-            )
+                print("❌ ERRO: PixelBuffer não criado")
+                return
+            }
 
-        guard formatStatus == noErr,
-              let formatDescription
-        else {
-            print("ERRO: FormatDescription")
-            return
-        }
 
-        let presentationTime = CMTime(
-            value: frameCount,
-            timescale: 30
-        )
+            var formatDescription: CMVideoFormatDescription?
 
-        let duration = CMTime(
-            value: 1,
-            timescale: 30
-        )
+            let formatStatus =
+                CMVideoFormatDescriptionCreateForImageBuffer(
+                    allocator: kCFAllocatorDefault,
+                    imageBuffer: pixelBuffer,
+                    formatDescriptionOut: &formatDescription
+                )
 
-        var timingInfo = CMSampleTimingInfo(
-            duration: duration,
-            presentationTimeStamp: presentationTime,
-            decodeTimeStamp: .invalid
-        )
 
-        var sampleBuffer: CMSampleBuffer?
+            guard formatStatus == noErr,
+                  let formatDescription = formatDescription
+            else {
 
-        let result =
-            CMSampleBufferCreateReadyWithImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: pixelBuffer,
-                formatDescription: formatDescription,
-                sampleTiming: &timingInfo,
-                sampleBufferOut: &sampleBuffer
-            )
+                print("❌ ERRO: FormatDescription")
+                return
+            }
 
-        guard result == noErr,
-              let sampleBuffer
-        else {
-            print("ERRO: SampleBuffer")
-            return
-        }
 
-        if displayLayer.isReadyForMoreMediaData {
+            let presentationTime =
+                CMTime(
+                    value: frameCount,
+                    timescale: timescale
+                )
 
-            displayLayer.enqueue(sampleBuffer)
 
-            frameCount += 1
+            let duration =
+                CMTime(
+                    value: 1,
+                    timescale: timescale
+                )
 
-        } else {
 
-            print("Layer não está pronto")
+            var timingInfo =
+                CMSampleTimingInfo(
+                    duration: duration,
+                    presentationTimeStamp: presentationTime,
+                    decodeTimeStamp: .invalid
+                )
+
+
+            var sampleBuffer: CMSampleBuffer?
+
+
+            let result =
+                CMSampleBufferCreateReadyWithImageBuffer(
+                    allocator: kCFAllocatorDefault,
+                    imageBuffer: pixelBuffer,
+                    formatDescription: formatDescription,
+                    sampleTiming: &timingInfo,
+                    sampleBufferOut: &sampleBuffer
+                )
+
+
+            guard result == noErr,
+                  let sampleBuffer = sampleBuffer
+            else {
+
+                print("❌ ERRO: SampleBuffer")
+                return
+            }
+
+
+            // Envia o frame para o PiP
+            if displayLayer.isReadyForMoreMediaData {
+
+                displayLayer.enqueue(sampleBuffer)
+
+                frameCount += 1
+
+            } else {
+
+                // Não fica travado: avança o contador
+                frameCount += 1
+
+                print("⚠️ Layer temporariamente não pronto")
+            }
         }
     }
 
