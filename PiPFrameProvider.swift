@@ -8,9 +8,7 @@ final class PiPFrameProvider {
     private let displayLayer: AVSampleBufferDisplayLayer
 
     private var frameCount: Int64 = 0
-    private let timescale: CMTimeScale = 600
-
-    private var startTime: CMTime?
+    private let timescale: CMTimeScale = 30
 
 
     init(displayLayer: AVSampleBufferDisplayLayer) {
@@ -34,6 +32,7 @@ final class PiPFrameProvider {
 
             var formatDescription: CMVideoFormatDescription?
 
+
             let formatResult =
                 CMVideoFormatDescriptionCreateForImageBuffer(
                     allocator: kCFAllocatorDefault,
@@ -51,30 +50,17 @@ final class PiPFrameProvider {
             }
 
 
-            // Timestamp baseado no tempo atual
-            let currentTime =
-                CMClockGetTime(
-                    CMClockGetHostTimeClock()
-                )
-
-
-            if startTime == nil {
-
-                startTime = currentTime
-            }
-
-
             let presentationTime =
-                CMTimeSubtract(
-                    currentTime,
-                    startTime!
+                CMTime(
+                    value: frameCount,
+                    timescale: timescale
                 )
 
 
             let duration =
                 CMTime(
                     value: 1,
-                    timescale: 30
+                    timescale: timescale
                 )
 
 
@@ -108,6 +94,37 @@ final class PiPFrameProvider {
             }
 
 
+            // IMPORTANTE:
+            // Força o AVSampleBufferDisplayLayer
+            // a mostrar o frame imediatamente.
+            if let attachments =
+                CMSampleBufferGetSampleAttachmentsArray(
+                    sampleBuffer,
+                    createIfNecessary: true
+                ) {
+
+                let dictionary =
+                    unsafeBitCast(
+                        CFArrayGetValueAtIndex(
+                            attachments,
+                            0
+                        ),
+                        to: CFMutableDictionary.self
+                    )
+
+
+                CFDictionarySetValue(
+                    dictionary,
+                    Unmanaged.passUnretained(
+                        kCMSampleAttachmentKey_DisplayImmediately
+                    ).toOpaque(),
+                    Unmanaged.passUnretained(
+                        kCFBooleanTrue
+                    ).toOpaque()
+                )
+            }
+
+
             if displayLayer.isReadyForMoreMediaData {
 
                 displayLayer.enqueue(
@@ -116,9 +133,20 @@ final class PiPFrameProvider {
 
                 frameCount += 1
 
+                // Debug: confirma que frames estão sendo enviados
+                if frameCount % 30 == 0 {
+
+                    print(
+                        "✅ Frames enviados:",
+                        frameCount
+                    )
+                }
+
             } else {
 
-                print("⚠️ DisplayLayer não está pronto")
+                print(
+                    "⚠️ DisplayLayer não pronto"
+                )
             }
         }
     }
@@ -129,7 +157,5 @@ final class PiPFrameProvider {
         displayLayer.flush()
 
         frameCount = 0
-
-        startTime = nil
     }
 }
