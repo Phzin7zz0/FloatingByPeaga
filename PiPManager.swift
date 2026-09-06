@@ -120,4 +120,4 @@ extension PiPManager: AVPictureInPictureSampleBufferPlaybackDelegate {
         completionHandler()
     }
 }
-}
+
