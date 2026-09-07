@@ -3,95 +3,243 @@ import CoreVideo
 
 enum TimerRenderer {
 
-    static func createPixelBuffer(text: String) -> CVPixelBuffer? {
+    static func createPixelBuffer(
+        text: String
+    ) -> CVPixelBuffer? {
 
         let width = 640
         let height = 360
 
-        let attributes: [String: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey as String: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
-            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
-        ]
+
+        let pixelBufferAttributes:
+            [String: Any] = [
+
+                kCVPixelBufferCGImageCompatibilityKey
+                    as String: true,
+
+                kCVPixelBufferCGBitmapContextCompatibilityKey
+                    as String: true
+            ]
+
 
         var pixelBuffer: CVPixelBuffer?
 
-        let status = CVPixelBufferCreate(
+
+        let result = CVPixelBufferCreate(
+
             kCFAllocatorDefault,
+
             width,
+
             height,
+
             kCVPixelFormatType_32BGRA,
-            attributes as CFDictionary,
+
+            pixelBufferAttributes as CFDictionary,
+
             &pixelBuffer
         )
 
-        guard status == kCVReturnSuccess,
-              let buffer = pixelBuffer else {
-            print("❌ ERRO CRIANDO BUFFER")
+
+        guard result == kCVReturnSuccess,
+              let pixelBuffer = pixelBuffer
+        else {
+
+            print(
+                "❌ ERRO CRIANDO PIXEL BUFFER"
+            )
+
             return nil
         }
 
-        CVPixelBufferLockBaseAddress(buffer, [])
 
-        guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
-            CVPixelBufferUnlockBaseAddress(buffer, [])
+        CVPixelBufferLockBaseAddress(
+            pixelBuffer,
+            []
+        )
+
+
+        defer {
+
+            CVPixelBufferUnlockBaseAddress(
+                pixelBuffer,
+                []
+            )
+        }
+
+
+        guard let baseAddress =
+                CVPixelBufferGetBaseAddress(
+                    pixelBuffer
+                )
+        else {
+
+            print(
+                "❌ SEM BASE ADDRESS"
+            )
+
             return nil
         }
+
+
+        let bytesPerRow =
+            CVPixelBufferGetBytesPerRow(
+                pixelBuffer
+            )
+
+
+        let colorSpace =
+            CGColorSpaceCreateDeviceRGB()
+
+
+        let bitmapInfo =
+            CGImageAlphaInfo
+                .premultipliedFirst
+                .rawValue
+            |
+            CGBitmapInfo
+                .byteOrder32Little
+                .rawValue
+
 
         guard let context = CGContext(
+
             data: baseAddress,
+
             width: width,
+
             height: height,
+
             bitsPerComponent: 8,
-            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+
+            bytesPerRow: bytesPerRow,
+
+            space: colorSpace,
+
+            bitmapInfo: bitmapInfo
+
         ) else {
-            CVPixelBufferUnlockBaseAddress(buffer, [])
+
+            print(
+                "❌ ERRO CRIANDO CONTEXT"
+            )
+
             return nil
         }
 
-        // TESTE: FUNDO VERMELHO FORTE
-        context.setFillColor(UIColor.red.cgColor)
+
+        // MARK: - Fundo preto
+
+        context.setFillColor(
+            UIColor.black.cgColor
+        )
+
+
         context.fill(
             CGRect(
+
                 x: 0,
+
                 y: 0,
+
                 width: width,
+
                 height: height
             )
         )
 
-        UIGraphicsPushContext(context)
 
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
+        // MARK: - Corrige sistema de coordenadas
+        //
+        // UIKit usa origem no canto superior esquerdo.
+        // CGContext puro usa origem inferior.
+        //
+        // Esta inversão faz o texto aparecer corretamente
+        // no AVSampleBufferDisplayLayer / PiP.
 
-        let textAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedDigitSystemFont(
-                ofSize: 100,
-                weight: .bold
-            ),
-            .foregroundColor: UIColor.white,
-            .paragraphStyle: paragraphStyle
-        ]
-
-        text.draw(
-            in: CGRect(
-                x: 0,
-                y: 120,
-                width: width,
-                height: 120
-            ),
-            withAttributes: textAttributes
+        context.translateBy(
+            x: 0,
+            y: CGFloat(height)
         )
 
-        UIGraphicsPopContext()
+        context.scaleBy(
+            x: 1,
+            y: -1
+        )
 
-        CVPixelBufferUnlockBaseAddress(buffer, [])
 
-        print("🟥 BUFFER CRIADO:", text)
+        UIGraphicsPushContext(
+            context
+        )
 
-        return buffer
+
+        defer {
+
+            UIGraphicsPopContext()
+        }
+
+
+        // MARK: - Estilo do texto
+
+        let paragraphStyle =
+            NSMutableParagraphStyle()
+
+        paragraphStyle.alignment =
+            .center
+
+
+        let font =
+            UIFont.monospacedDigitSystemFont(
+
+                ofSize: 110,
+
+                weight: .bold
+            )
+
+
+        let textAttributes:
+            [NSAttributedString.Key: Any] = [
+
+                .font:
+                    font,
+
+                .foregroundColor:
+                    UIColor.white,
+
+                .paragraphStyle:
+                    paragraphStyle
+            ]
+
+
+        // MARK: - Área do texto
+
+        let textRect = CGRect(
+
+            x: 0,
+
+            y: 100,
+
+            width: CGFloat(width),
+
+            height: 160
+        )
+
+
+        text.draw(
+
+            in: textRect,
+
+            withAttributes:
+                textAttributes
+        )
+
+
+        print(
+            "✅ FRAME DESENHADO:",
+            text
+        )
+
+
+        return pixelBuffer
     }
 }
