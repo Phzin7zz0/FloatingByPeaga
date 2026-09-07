@@ -1,132 +1,61 @@
 import Foundation
 import AVFoundation
 import CoreMedia
-import CoreVideo
 
 final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
+    private var frameCount: Int64 = 0
 
-    init(
-        displayLayer: AVSampleBufferDisplayLayer
-    ) {
-
+    init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
     }
 
-
     func update(text: String) {
-
-        guard let pixelBuffer =
-                TimerRenderer.createPixelBuffer(
-                    text: text
-                ) else {
-
-            print("❌ ERRO: PixelBuffer não criado")
+        guard let pixelBuffer = TimerRenderer.createPixelBuffer(text: text) else {
             return
         }
 
+        var formatDescription: CMVideoFormatDescription?
 
-        var formatDescription:
-            CMVideoFormatDescription?
+        let status = CMVideoFormatDescriptionCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: pixelBuffer,
+            formatDescriptionOut: &formatDescription
+        )
 
-
-        let formatStatus =
-            CMVideoFormatDescriptionCreateForImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: pixelBuffer,
-                formatDescriptionOut: &formatDescription
-            )
-
-
-        guard formatStatus == noErr,
-              let formatDescription =
-                formatDescription else {
-
-            print("❌ ERRO: FormatDescription")
+        guard status == noErr,
+              let formatDescription = formatDescription else {
             return
         }
 
-
-        // Usa o relógio atual do sistema.
-        // Isso evita que os frames fiquem "atrasados"
-        // e travem no primeiro frame.
-
-        let currentTime =
-            CMClockGetTime(
-                CMClockGetHostTimeClock()
-            )
-
-
-        let duration =
-            CMTime(
-                value: 1,
+        var timingInfo = CMSampleTimingInfo(
+            duration: CMTime(value: 1, timescale: 30),
+            presentationTimeStamp: CMTime(
+                value: frameCount,
                 timescale: 30
-            )
-
-
-        var timingInfo =
-            CMSampleTimingInfo(
-                duration: duration,
-                presentationTimeStamp: currentTime,
-                decodeTimeStamp: .invalid
-            )
-
+            ),
+            decodeTimeStamp: .invalid
+        )
 
         var sampleBuffer: CMSampleBuffer?
 
-
-        let result =
-            CMSampleBufferCreateReadyWithImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: pixelBuffer,
-                formatDescription: formatDescription,
-                sampleTiming: &timingInfo,
-                sampleBufferOut: &sampleBuffer
-            )
-
+        let result = CMSampleBufferCreateReadyWithImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: pixelBuffer,
+            formatDescription: formatDescription,
+            sampleTiming: &timingInfo,
+            sampleBufferOut: &sampleBuffer
+        )
 
         guard result == noErr,
-              let sampleBuffer =
-                sampleBuffer else {
-
-            print("❌ ERRO: SampleBuffer")
+              let sampleBuffer = sampleBuffer else {
             return
         }
 
-
-        // Se a layer falhou, limpa
-        if displayLayer.status == .failed {
-
-            print(
-                "⚠️ DISPLAY LAYER FALHOU:",
-                displayLayer.error?
-                    .localizedDescription
-                    ?? "Erro desconhecido"
-            )
-
-            displayLayer.flush()
-        }
-
-
-        // Envia novo frame
         if displayLayer.isReadyForMoreMediaData {
-
-            displayLayer.enqueue(
-                sampleBuffer
-            )
-
-        } else {
-
-            print(
-                "⚠️ Layer não pronta"
-            )
+            displayLayer.enqueue(sampleBuffer)
+            frameCount += 1
         }
-    }
-
-
-    func reset() {
-
-        displayLayer.flush()
     }
 }

@@ -1,223 +1,81 @@
 import SwiftUI
-import AVFoundation
 
 struct ContentView: View {
 
-    @StateObject private var pipManager = PiPManager()
     @StateObject private var timerManager = TimerManager()
+    @StateObject private var pipManager = PiPManager()
 
     var body: some View {
+        VStack(spacing: 30) {
 
-        ScrollView {
+            // Cronômetro
+            Text(timerManager.formattedTime)
+                .font(.system(size: 55, weight: .bold, design: .rounded))
+                .monospacedDigit()
 
-            VStack(spacing: 25) {
+            HStack(spacing: 20) {
 
-                Text("Floating Timer")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-
-
-                // MARK: - Preview do PiP
-
-                VStack(spacing: 10) {
-
-                    Text("Preview do PiP")
-                        .font(.headline)
-
-                    PiPDisplayView(
-                        displayLayer: pipManager.displayLayer
-                    )
-                    .frame(
-                        width: 320,
-                        height: 180
-                    )
-                    .background(Color.black)
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: 15
-                        )
-                    )
-                }
-
-
-                // MARK: - Cronômetro principal
-
-                Text(timerManager.formattedTime)
-                    .font(
-                        .system(
-                            size: 55,
-                            weight: .bold,
-                            design: .monospaced
-                        )
-                    )
-
-
-                // MARK: - Status
-
-                Text(pipManager.status)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-
-
-                // MARK: - Botões do cronômetro
-
-                HStack(spacing: 15) {
-
-                    Button {
-
-                        timerManager.start()
-
-                    } label: {
-
-                        Text("Iniciar")
-                    }
-                    .buttonStyle(.borderedProminent)
-
-
-                    Button {
-
-                        timerManager.pause()
-
-                    } label: {
-
-                        Text("Pausar")
-                    }
-                    .buttonStyle(.bordered)
-
-
-                    Button {
-
-                        timerManager.reset()
-
-                    } label: {
-
-                        Text("Resetar")
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-
-                // MARK: - Abrir PiP
-
+                // Iniciar / Pausar
                 Button {
-
-                    pipManager.startPiP()
-
+                    if timerManager.isRunning {
+                        timerManager.pause()
+                    } else {
+                        timerManager.start()
+                    }
                 } label: {
-
-                    HStack {
-
-                        Image(
-                            systemName: "pip.enter"
-                        )
-
-                        Text(
-                            "Abrir janela flutuante"
-                        )
-                    }
-                    .font(.headline)
-                    .padding()
-                    .frame(
-                        maxWidth: .infinity
+                    Image(
+                        systemName: timerManager.isRunning
+                        ? "pause.fill"
+                        : "play.fill"
                     )
+                    .font(.system(size: 30))
+                    .frame(width: 80, height: 60)
                 }
-                .buttonStyle(
-                    .borderedProminent
-                )
-                .padding(.horizontal)
+                .buttonStyle(.borderedProminent)
 
-
-                // MARK: - Fechar PiP
-
-                if pipManager.isPiPActive {
-
-                    Button {
-
-                        pipManager.stopPiP()
-
-                    } label: {
-
-                        HStack {
-
-                            Image(
-                                systemName: "pip.exit"
-                            )
-
-                            Text(
-                                "Fechar janela flutuante"
-                            )
-                        }
-                        .padding()
-                    }
-                    .buttonStyle(
-                        .bordered
-                    )
+                // Reiniciar
+                Button {
+                    timerManager.reset()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 28))
+                        .frame(width: 80, height: 60)
                 }
+                .buttonStyle(.bordered)
 
-
-                Spacer()
-                    .frame(height: 30)
             }
-            .padding()
-        }
 
-        // MARK: - CONECTA O CRONÔMETRO AO PiP
+            // Botão Picture-in-Picture
+            Button {
+
+                timerManager.connectPiP(
+                    displayLayer: pipManager.displayLayer
+                )
+
+                pipManager.startPiP()
+
+            } label: {
+
+                Label(
+                    "Ativar janela flutuante",
+                    systemImage: "pip.enter"
+                )
+            }
+            .buttonStyle(.borderedProminent)
+
+        }
+        .padding()
 
         .onAppear {
+            timerManager.start()
 
-            pipManager.connectTimer(
-                timerManager
+            timerManager.connectPiP(
+                displayLayer: pipManager.displayLayer
             )
         }
     }
 }
 
-
-// MARK: - UIView que mostra AVSampleBufferDisplayLayer
-
-struct PiPDisplayView: UIViewRepresentable {
-
-    let displayLayer: AVSampleBufferDisplayLayer
-
-
-    func makeUIView(
-        context: Context
-    ) -> UIView {
-
-        let view = UIView()
-
-        view.backgroundColor = .black
-
-
-        // Adiciona a camada do PiP
-        view.layer.addSublayer(
-            displayLayer
-        )
-
-
-        // Configuração visual
-        displayLayer.videoGravity =
-            .resizeAspect
-
-
-        DispatchQueue.main.async {
-
-            displayLayer.frame =
-                view.bounds
-        }
-
-
-        return view
-    }
-
-
-    func updateUIView(
-        _ uiView: UIView,
-        context: Context
-    ) {
-
-        displayLayer.frame =
-            uiView.bounds
-    }
+#Preview {
+    ContentView()
 }
