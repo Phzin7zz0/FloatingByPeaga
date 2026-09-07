@@ -11,8 +11,7 @@ enum TimerRenderer {
         let height = 360
 
 
-        // Configurações do PixelBuffer
-        let pixelBufferAttributes: [String: Any] = [
+        let attributes: [String: Any] = [
 
             kCVPixelBufferCGImageCompatibilityKey
                 as String: true,
@@ -35,7 +34,7 @@ enum TimerRenderer {
 
             kCVPixelFormatType_32BGRA,
 
-            pixelBufferAttributes as CFDictionary,
+            attributes as CFDictionary,
 
             &pixelBuffer
         )
@@ -45,7 +44,7 @@ enum TimerRenderer {
               let pixelBuffer = pixelBuffer
         else {
 
-            print("ERRO CRIANDO PIXEL BUFFER")
+            print("❌ ERRO CRIANDO PIXEL BUFFER")
 
             return nil
         }
@@ -72,7 +71,7 @@ enum TimerRenderer {
                 )
         else {
 
-            print("SEM BASE ADDRESS")
+            print("❌ SEM BASE ADDRESS")
 
             return nil
         }
@@ -82,6 +81,20 @@ enum TimerRenderer {
             CVPixelBufferGetBytesPerRow(
                 pixelBuffer
             )
+
+
+        let colorSpace =
+            CGColorSpaceCreateDeviceRGB()
+
+
+        let bitmapInfo =
+            CGImageAlphaInfo
+                .premultipliedFirst
+                .rawValue
+            |
+            CGBitmapInfo
+                .byteOrder32Little
+                .rawValue
 
 
         guard let context = CGContext(
@@ -96,23 +109,19 @@ enum TimerRenderer {
 
             bytesPerRow: bytesPerRow,
 
-            space:
-                CGColorSpaceCreateDeviceRGB(),
+            space: colorSpace,
 
-            bitmapInfo:
-                CGImageAlphaInfo
-                    .premultipliedFirst
-                    .rawValue
+            bitmapInfo: bitmapInfo
 
         ) else {
 
-            print("ERRO CONTEXT")
+            print("❌ ERRO CRIANDO CONTEXT")
 
             return nil
         }
 
 
-        // Limpa completamente o fundo
+        // Fundo preto
         context.setFillColor(
             UIColor.black.cgColor
         )
@@ -127,7 +136,7 @@ enum TimerRenderer {
         )
 
 
-        // UIKit trabalha com eixo Y invertido
+        // Inverte coordenadas para UIKit
         context.translateBy(
             x: 0,
             y: CGFloat(height)
@@ -142,6 +151,11 @@ enum TimerRenderer {
         UIGraphicsPushContext(
             context
         )
+
+        defer {
+
+            UIGraphicsPopContext()
+        }
 
 
         let paragraphStyle =
@@ -158,11 +172,9 @@ enum TimerRenderer {
             )
 
 
-        // Configurações visuais do texto
-        let textAttributes: [NSAttributedString.Key: Any] = [
+        let attributes: [NSAttributedString.Key: Any] = [
 
-            .font:
-                font,
+            .font: font,
 
             .foregroundColor:
                 UIColor.white,
@@ -178,7 +190,7 @@ enum TimerRenderer {
 
             y: 100,
 
-            width: width,
+            width: CGFloat(width),
 
             height: 160
         )
@@ -189,15 +201,12 @@ enum TimerRenderer {
             in: textRect,
 
             withAttributes:
-                textAttributes
+                attributes
         )
 
 
-        UIGraphicsPopContext()
-
-
         print(
-            "FRAME DESENHADO:",
+            "✅ FRAME DESENHADO:",
             text
         )
 
