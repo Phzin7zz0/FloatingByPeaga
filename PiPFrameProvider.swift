@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import CoreVideo
 
 final class PiPFrameProvider {
 
@@ -8,7 +9,7 @@ final class PiPFrameProvider {
 
     private var frameCount: Int64 = 0
 
-    private let frameRate: Int32 = 30
+    private let timescale: CMTimeScale = 30
 
 
     init(
@@ -23,21 +24,13 @@ final class PiPFrameProvider {
         text: String
     ) {
 
-        print(
-            "▶️ UPDATE CHAMADO:",
-            text
-        )
-
-
         guard let pixelBuffer =
                 TimerRenderer.createPixelBuffer(
                     text: text
                 )
         else {
 
-            print(
-                "❌ PIXEL BUFFER FALHOU"
-            )
+            print("❌ PIXEL BUFFER FALHOU")
 
             return
         }
@@ -62,7 +55,8 @@ final class PiPFrameProvider {
 
 
         guard formatStatus == noErr,
-              let formatDescription
+              let formatDescription =
+                    formatDescription
         else {
 
             print(
@@ -73,14 +67,13 @@ final class PiPFrameProvider {
         }
 
 
+        // Timestamp sequencial
         let presentationTime =
             CMTime(
 
-                value:
-                    frameCount,
+                value: frameCount,
 
-                timescale:
-                    frameRate
+                timescale: timescale
             )
 
 
@@ -92,7 +85,7 @@ final class PiPFrameProvider {
 
                         value: 1,
 
-                        timescale: frameRate
+                        timescale: timescale
                     ),
 
                 presentationTimeStamp:
@@ -128,7 +121,8 @@ final class PiPFrameProvider {
 
 
         guard result == noErr,
-              let sampleBuffer
+              let sampleBuffer =
+                    sampleBuffer
         else {
 
             print(
@@ -139,15 +133,15 @@ final class PiPFrameProvider {
         }
 
 
+        // Se a layer falhou, reseta
         if displayLayer.status == .failed {
 
             print(
                 "❌ DISPLAY LAYER FAILED:",
                 displayLayer.error?
                     .localizedDescription
-                    ?? "desconhecido"
+                    ?? "Erro desconhecido"
             )
-
 
             displayLayer.flush()
 
@@ -155,27 +149,18 @@ final class PiPFrameProvider {
         }
 
 
-        if displayLayer.isReadyForMoreMediaData {
+        guard displayLayer.isReadyForMoreMediaData else {
 
-            displayLayer.enqueue(
-                sampleBuffer
-            )
-
-
-            frameCount += 1
-
-
-            print(
-                "✅ FRAME ENVIADO:",
-                text
-            )
-
-        } else {
-
-            print(
-                "⚠️ LAYER NÃO PRONTO"
-            )
+            return
         }
+
+
+        displayLayer.enqueue(
+            sampleBuffer
+        )
+
+
+        frameCount += 1
     }
 
 
