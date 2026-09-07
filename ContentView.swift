@@ -52,15 +52,66 @@ struct ContentView: View {
                     )
 
 
-                // MARK: - Status
+                // MARK: - STATUS PiP
 
-                Text(pipManager.status)
+                VStack(spacing: 5) {
+
+                    Text(pipManager.status)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+
+                    Divider()
+
+
+                    // DEBUG DA DISPLAY LAYER
+
+                    Text(
+                        "Layer status: \(pipManager.displayLayer.status.rawValue)"
+                    )
                     .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                    .foregroundColor(.red)
 
 
-                // MARK: - Botões do cronômetro
+                    Text(
+                        "Ready: \(pipManager.displayLayer.isReadyForMoreMediaData ? "true" : "false")"
+                    )
+                    .font(.caption)
+                    .foregroundColor(.blue)
+
+
+                    if let error =
+                        pipManager.displayLayer.error {
+
+                        Text(
+                            "Erro Layer: \(error.localizedDescription)"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+
+                    } else {
+
+                        Text(
+                            "Erro Layer: Nenhum"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.green)
+                    }
+                }
+                .padding()
+                .background(
+                    Color.gray.opacity(0.1)
+                )
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: 10
+                    )
+                )
+
+
+                // MARK: - Botões cronômetro
 
                 HStack(spacing: 15) {
 
@@ -72,7 +123,9 @@ struct ContentView: View {
 
                         Text("Iniciar")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(
+                        .borderedProminent
+                    )
 
 
                     Button {
@@ -83,7 +136,9 @@ struct ContentView: View {
 
                         Text("Pausar")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(
+                        .bordered
+                    )
 
 
                     Button {
@@ -94,7 +149,9 @@ struct ContentView: View {
 
                         Text("Resetar")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(
+                        .bordered
+                    )
                 }
 
 
@@ -162,7 +219,8 @@ struct ContentView: View {
             .padding()
         }
 
-        // MARK: - CONECTA O CRONÔMETRO AO PiP
+
+        // MARK: - Conecta Timer ao PiP
 
         .onAppear {
 
@@ -174,11 +232,12 @@ struct ContentView: View {
 }
 
 
-// MARK: - UIView que mostra AVSampleBufferDisplayLayer
+// MARK: - UIView Preview
 
 struct PiPDisplayView: UIViewRepresentable {
 
-    let displayLayer: AVSampleBufferDisplayLayer
+    let displayLayer:
+        AVSampleBufferDisplayLayer
 
 
     func makeUIView(
@@ -187,25 +246,31 @@ struct PiPDisplayView: UIViewRepresentable {
 
         let view = UIView()
 
-        view.backgroundColor = .black
+        view.backgroundColor =
+            UIColor.black
 
 
-        // Adiciona a camada do PiP
+        // Adiciona Display Layer
+
         view.layer.addSublayer(
             displayLayer
         )
 
 
-        // Configuração visual
         displayLayer.videoGravity =
             .resizeAspect
 
 
-        DispatchQueue.main.async {
+        // IMPORTANTE:
+        // Define frame imediatamente
 
-            displayLayer.frame =
-                view.bounds
-        }
+        displayLayer.frame =
+            CGRect(
+                x: 0,
+                y: 0,
+                width: 320,
+                height: 180
+            )
 
 
         return view
@@ -217,7 +282,10 @@ struct PiPDisplayView: UIViewRepresentable {
         context: Context
     ) {
 
-        displayLayer.frame =
-            uiView.bounds
+        DispatchQueue.main.async {
+
+            self.displayLayer.frame =
+                uiView.bounds
+        }
     }
 }
