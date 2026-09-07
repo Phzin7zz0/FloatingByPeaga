@@ -7,6 +7,9 @@ final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
+    private var frameCount: Int64 = 0
+
+
     init(
         displayLayer: AVSampleBufferDisplayLayer
     ) {
@@ -36,45 +39,41 @@ final class PiPFrameProvider {
             CMVideoFormatDescriptionCreateForImageBuffer(
                 allocator: kCFAllocatorDefault,
                 imageBuffer: pixelBuffer,
-                formatDescriptionOut: &formatDescription
+                formatDescriptionOut:
+                    &formatDescription
             )
 
 
         guard formatStatus == noErr,
-              let formatDescription = formatDescription
+              let formatDescription
         else {
 
-            print("❌ Erro FormatDescription")
+            print("❌ FormatDescription falhou")
             return
         }
 
 
-        /*
-         IMPORTANTE:
+        // Timestamp sequencial: 0, 1/30, 2/30...
 
-         Para conteúdo gerado manualmente,
-         usamos timestamps simples e crescentes.
-        */
-
-        let currentTime =
+        let presentationTime =
             CMTime(
-                seconds:
-                    CACurrentMediaTime(),
-                preferredTimescale: 600
+                value: frameCount,
+                timescale: 30
+            )
+
+
+        let duration =
+            CMTime(
+                value: 1,
+                timescale: 30
             )
 
 
         var timingInfo =
             CMSampleTimingInfo(
-                duration:
-                    CMTime(
-                        value: 1,
-                        timescale: 30
-                    ),
-
+                duration: duration,
                 presentationTimeStamp:
-                    currentTime,
-
+                    presentationTime,
                 decodeTimeStamp:
                     .invalid
             )
@@ -104,26 +103,28 @@ final class PiPFrameProvider {
 
 
         guard result == noErr,
-              let sampleBuffer = sampleBuffer
+              let sampleBuffer
         else {
 
-            print("❌ Erro SampleBuffer")
+            print("❌ SampleBuffer falhou")
             return
         }
 
 
-        // Se deu erro, limpa a layer
+        // Verifica erro
 
         if displayLayer.status == .failed {
 
             print(
-                "⚠️ Layer falhou:",
+                "⚠️ DISPLAY LAYER FALHOU:",
                 displayLayer.error?
                     .localizedDescription
                     ?? "Erro desconhecido"
             )
 
             displayLayer.flush()
+
+            frameCount = 0
         }
 
 
@@ -135,10 +136,17 @@ final class PiPFrameProvider {
                 sampleBuffer
             )
 
+            print(
+                "✅ FRAME ENVIADO:",
+                frameCount
+            )
+
+            frameCount += 1
+
         } else {
 
             print(
-                "⚠️ Layer não está pronta"
+                "⚠️ DISPLAY LAYER NÃO PRONTA"
             )
         }
     }
@@ -147,5 +155,7 @@ final class PiPFrameProvider {
     func reset() {
 
         displayLayer.flush()
+
+        frameCount = 0
     }
 }
