@@ -3,111 +3,77 @@ import CoreVideo
 
 enum TimerRenderer {
 
-    static func createPixelBuffer(
-        text: String
-    ) -> CVPixelBuffer? {
+    static func createPixelBuffer(text: String) -> CVPixelBuffer? {
 
         let width = 640
         let height = 360
 
         let attributes: [String: Any] = [
-
-            kCVPixelBufferCGImageCompatibilityKey
-                as String: true,
-
-            kCVPixelBufferCGBitmapContextCompatibilityKey
-                as String: true
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
         ]
 
         var pixelBuffer: CVPixelBuffer?
 
-        let result = CVPixelBufferCreate(
-
+        let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
-
             width,
-
             height,
-
             kCVPixelFormatType_32BGRA,
-
             attributes as CFDictionary,
-
             &pixelBuffer
         )
 
-        guard result == kCVReturnSuccess,
-              let pixelBuffer = pixelBuffer
-        else {
+        guard status == kCVReturnSuccess,
+              let buffer = pixelBuffer else {
 
-            print("❌ ERRO CRIANDO PIXEL BUFFER")
-
+            print("ERRO AO CRIAR PIXEL BUFFER")
             return nil
         }
 
-        CVPixelBufferLockBaseAddress(
-            pixelBuffer,
-            []
-        )
+        CVPixelBufferLockBaseAddress(buffer, [])
 
         defer {
-
-            CVPixelBufferUnlockBaseAddress(
-                pixelBuffer,
-                []
-            )
+            CVPixelBufferUnlockBaseAddress(buffer, [])
         }
 
         guard let baseAddress =
-                CVPixelBufferGetBaseAddress(
-                    pixelBuffer
-                )
-        else {
+                CVPixelBufferGetBaseAddress(buffer) else {
 
-            print("❌ SEM BASE ADDRESS")
-
+            print("SEM BASE ADDRESS")
             return nil
         }
-
-        let bytesPerRow =
-            CVPixelBufferGetBytesPerRow(
-                pixelBuffer
-            )
-
-        let colorSpace =
-            CGColorSpaceCreateDeviceRGB()
-
-        let bitmapInfo =
-            CGImageAlphaInfo
-                .premultipliedFirst
-                .rawValue
-            |
-            CGBitmapInfo
-                .byteOrder32Little
-                .rawValue
 
         guard let context = CGContext(
-
             data: baseAddress,
-
             width: width,
-
             height: height,
-
             bitsPerComponent: 8,
-
-            bytesPerRow: bytesPerRow,
-
-            space: colorSpace,
-
-            bitmapInfo: bitmapInfo
-
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo:
+                CGImageAlphaInfo
+                    .premultipliedFirst
+                    .rawValue
         ) else {
 
-            print("❌ ERRO CRIANDO CONTEXT")
-
+            print("ERRO AO CRIAR CONTEXT")
             return nil
         }
+
+
+        // MARK: - Corrige imagem invertida
+
+        context.translateBy(
+            x: 0,
+            y: CGFloat(height)
+        )
+
+        context.scaleBy(
+            x: 1,
+            y: -1
+        )
+
 
         // Fundo preto
         context.setFillColor(
@@ -123,25 +89,24 @@ enum TimerRenderer {
             )
         )
 
-        // Inverte coordenadas para UIKit
-        context.translateBy(
-            x: 0,
-            y: CGFloat(height)
+
+        // Fundo vermelho para teste/visual
+        context.setFillColor(
+            UIColor.red.cgColor
         )
 
-        context.scaleBy(
-            x: 1,
-            y: -1
+        context.fill(
+            CGRect(
+                x: 10,
+                y: 10,
+                width: width - 20,
+                height: height - 20
+            )
         )
 
-        UIGraphicsPushContext(
-            context
-        )
 
-        defer {
-
-            UIGraphicsPopContext()
-        }
+        // Desenha texto
+        UIGraphicsPushContext(context)
 
         let paragraphStyle =
             NSMutableParagraphStyle()
@@ -149,47 +114,46 @@ enum TimerRenderer {
         paragraphStyle.alignment =
             .center
 
-        let font =
-            UIFont.monospacedDigitSystemFont(
-                ofSize: 110,
-                weight: .bold
-            )
 
-        let textAttributes: [NSAttributedString.Key: Any] = [
+        let textAttributes:
+            [NSAttributedString.Key: Any] = [
 
-            .font: font,
+                .font:
+                    UIFont.systemFont(
+                        ofSize: 110,
+                        weight: .bold
+                    ),
 
-            .foregroundColor:
-                UIColor.white,
+                .foregroundColor:
+                    UIColor.white,
 
-            .paragraphStyle:
-                paragraphStyle
-        ]
+                .paragraphStyle:
+                    paragraphStyle
+            ]
+
 
         let textRect = CGRect(
-
             x: 0,
-
-            y: 100,
-
-            width: CGFloat(width),
-
-            height: 160
+            y: 110,
+            width: width,
+            height: 140
         )
+
 
         text.draw(
-
             in: textRect,
-
-            withAttributes:
-                textAttributes
+            withAttributes: textAttributes
         )
 
+
+        UIGraphicsPopContext()
+
+
         print(
-            "✅ FRAME DESENHADO:",
+            "FRAME CRIADO:",
             text
         )
 
-        return pixelBuffer
+        return buffer
     }
 }
