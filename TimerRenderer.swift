@@ -51,6 +51,15 @@ enum TimerRenderer {
             return nil
         }
 
+        // IMPORTANTE: CGContext criado direto sobre a memória do
+        // CVPixelBuffer tem origem no canto inferior esquerdo (padrão
+        // do Core Graphics). O buffer de vídeo/AVSampleBufferDisplayLayer
+        // espera a linha 0 no topo, e o UIKit também desenha texto
+        // assumindo origem no topo. Sem esse flip, tudo sai espelhado
+        // verticalmente (de cabeça para baixo).
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1.0, y: -1.0)
+
         // TESTE: FUNDO VERMELHO FORTE
         context.setFillColor(UIColor.red.cgColor)
         context.fill(
