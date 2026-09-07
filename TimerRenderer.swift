@@ -26,8 +26,6 @@ enum TimerRenderer {
 
         guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
-
-            print("ERRO AO CRIAR PIXEL BUFFER")
             return nil
         }
 
@@ -39,8 +37,6 @@ enum TimerRenderer {
 
         guard let baseAddress =
                 CVPixelBufferGetBaseAddress(buffer) else {
-
-            print("SEM BASE ADDRESS")
             return nil
         }
 
@@ -56,14 +52,10 @@ enum TimerRenderer {
                     .premultipliedFirst
                     .rawValue
         ) else {
-
-            print("ERRO AO CRIAR CONTEXT")
             return nil
         }
 
-
-        // MARK: - Corrige imagem invertida
-
+        // Corrige orientação do CoreGraphics
         context.translateBy(
             x: 0,
             y: CGFloat(height)
@@ -73,7 +65,6 @@ enum TimerRenderer {
             x: 1,
             y: -1
         )
-
 
         // Fundo preto
         context.setFillColor(
@@ -89,23 +80,6 @@ enum TimerRenderer {
             )
         )
 
-
-        // Fundo vermelho para teste/visual
-        context.setFillColor(
-            UIColor.red.cgColor
-        )
-
-        context.fill(
-            CGRect(
-                x: 10,
-                y: 10,
-                width: width - 20,
-                height: height - 20
-            )
-        )
-
-
-        // Desenha texto
         UIGraphicsPushContext(context)
 
         let paragraphStyle =
@@ -114,13 +88,12 @@ enum TimerRenderer {
         paragraphStyle.alignment =
             .center
 
-
         let textAttributes:
             [NSAttributedString.Key: Any] = [
 
                 .font:
-                    UIFont.systemFont(
-                        ofSize: 110,
+                    UIFont.monospacedDigitSystemFont(
+                        ofSize: 105,
                         weight: .bold
                     ),
 
@@ -131,28 +104,19 @@ enum TimerRenderer {
                     paragraphStyle
             ]
 
-
         let textRect = CGRect(
             x: 0,
-            y: 110,
+            y: 105,
             width: width,
-            height: 140
+            height: 150
         )
-
 
         text.draw(
             in: textRect,
             withAttributes: textAttributes
         )
 
-
         UIGraphicsPopContext()
-
-
-        print(
-            "FRAME CRIADO:",
-            text
-        )
 
         return buffer
     }
