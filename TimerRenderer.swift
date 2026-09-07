@@ -10,8 +10,7 @@ enum TimerRenderer {
         let width = 640
         let height = 360
 
-
-        let attributes: [String: Any] = [
+        let pixelBufferAttributes: [String: Any] = [
 
             kCVPixelBufferCGImageCompatibilityKey
                 as String: true,
@@ -20,9 +19,7 @@ enum TimerRenderer {
                 as String: true
         ]
 
-
         var pixelBuffer: CVPixelBuffer?
-
 
         let result = CVPixelBufferCreate(
 
@@ -34,11 +31,10 @@ enum TimerRenderer {
 
             kCVPixelFormatType_32BGRA,
 
-            attributes as CFDictionary,
+            pixelBufferAttributes as CFDictionary,
 
             &pixelBuffer
         )
-
 
         guard result == kCVReturnSuccess,
               let pixelBuffer = pixelBuffer
@@ -49,12 +45,10 @@ enum TimerRenderer {
             return nil
         }
 
-
         CVPixelBufferLockBaseAddress(
             pixelBuffer,
             []
         )
-
 
         defer {
 
@@ -63,7 +57,6 @@ enum TimerRenderer {
                 []
             )
         }
-
 
         guard let baseAddress =
                 CVPixelBufferGetBaseAddress(
@@ -76,16 +69,13 @@ enum TimerRenderer {
             return nil
         }
 
-
         let bytesPerRow =
             CVPixelBufferGetBytesPerRow(
                 pixelBuffer
             )
 
-
         let colorSpace =
             CGColorSpaceCreateDeviceRGB()
-
 
         let bitmapInfo =
             CGImageAlphaInfo
@@ -95,7 +85,6 @@ enum TimerRenderer {
             CGBitmapInfo
                 .byteOrder32Little
                 .rawValue
-
 
         guard let context = CGContext(
 
@@ -120,7 +109,6 @@ enum TimerRenderer {
             return nil
         }
 
-
         // Fundo preto
         context.setFillColor(
             UIColor.black.cgColor
@@ -135,7 +123,6 @@ enum TimerRenderer {
             )
         )
 
-
         // Inverte coordenadas para UIKit
         context.translateBy(
             x: 0,
@@ -147,7 +134,6 @@ enum TimerRenderer {
             y: -1
         )
 
-
         UIGraphicsPushContext(
             context
         )
@@ -157,13 +143,11 @@ enum TimerRenderer {
             UIGraphicsPopContext()
         }
 
-
         let paragraphStyle =
             NSMutableParagraphStyle()
 
         paragraphStyle.alignment =
             .center
-
 
         let font =
             UIFont.monospacedDigitSystemFont(
@@ -171,8 +155,7 @@ enum TimerRenderer {
                 weight: .bold
             )
 
-
-        let attributes: [NSAttributedString.Key: Any] = [
+        let textAttributes: [NSAttributedString.Key: Any] = [
 
             .font: font,
 
@@ -182,7 +165,6 @@ enum TimerRenderer {
             .paragraphStyle:
                 paragraphStyle
         ]
-
 
         let textRect = CGRect(
 
@@ -195,21 +177,18 @@ enum TimerRenderer {
             height: 160
         )
 
-
         text.draw(
 
             in: textRect,
 
             withAttributes:
-                attributes
+                textAttributes
         )
-
 
         print(
             "✅ FRAME DESENHADO:",
             text
         )
-
 
         return pixelBuffer
     }
