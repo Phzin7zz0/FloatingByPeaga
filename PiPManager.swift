@@ -122,13 +122,13 @@ final class PiPManager: NSObject, ObservableObject {
                 self
 
 
-            // Permite controles no PiP
+            // Permite controles de reprodução
             pipController?
                 .requiresLinearPlayback =
                     false
 
 
-            // Aguarda inicialização
+            // Aguarda inicialização e começa a renderizar
             DispatchQueue.main.asyncAfter(
                 deadline: .now() + 0.5
             ) {
@@ -171,7 +171,7 @@ final class PiPManager: NSObject, ObservableObject {
                     ?? "00:00.00"
 
 
-                // Atualiza frame
+                // Atualiza o frame
                 self.frameProvider?
                     .update(
                         text: text
@@ -348,12 +348,11 @@ extension PiPManager:
 // MARK: - Playback Delegate
 
 @available(iOS 15.0, *)
-
 extension PiPManager:
     AVPictureInPictureSampleBufferPlaybackDelegate {
 
 
-    // Botão Play/Pause do PiP
+    // ▶️ PLAY = INICIAR
     func pictureInPictureController(
         _ pictureInPictureController:
             AVPictureInPictureController,
@@ -362,57 +361,50 @@ extension PiPManager:
             Bool
     ) {
 
-        DispatchQueue.main.async {
+        if playing {
 
-            if playing {
+            DispatchQueue.main.async {
 
                 self.timerManager?
                     .start()
 
-            } else {
-
-                self.timerManager?
-                    .pause()
+                print(
+                    "▶️ Cronômetro iniciado pelo PiP"
+                )
             }
         }
     }
 
 
+    // Mantém o botão ▶️ disponível
+    func pictureInPictureControllerIsPlaybackPaused(
+        _ pictureInPictureController:
+            AVPictureInPictureController
+    ) -> Bool {
+
+        return true
+    }
+
+
+    // Tempo total fictício para o PiP
     func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController:
             AVPictureInPictureController
     ) -> CMTimeRange {
 
         return CMTimeRange(
-            start:
-                .zero,
+            start: .zero,
 
             duration:
                 CMTime(
-                    seconds:
-                        3600,
-
-                    preferredTimescale:
-                        600
+                    seconds: 3600,
+                    preferredTimescale: 600
                 )
         )
     }
 
 
-    func pictureInPictureControllerIsPlaybackPaused(
-        _ pictureInPictureController:
-            AVPictureInPictureController
-    ) -> Bool {
-
-        // Diz ao PiP se está pausado
-        return !(
-            timerManager?
-                .isRunning
-            ?? false
-        )
-    }
-
-
+    // ⏪ / ⏩ SKIP = REINICIAR
     func pictureInPictureController(
         _ pictureInPictureController:
             AVPictureInPictureController,
@@ -426,7 +418,17 @@ extension PiPManager:
                 @escaping @Sendable () -> Void
     ) {
 
-        completionHandler()
+        DispatchQueue.main.async {
+
+            self.timerManager?
+                .reset()
+
+            print(
+                "🔄 Cronômetro reiniciado pelo PiP"
+            )
+
+            completionHandler()
+        }
     }
 
 
