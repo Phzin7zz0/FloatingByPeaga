@@ -1,32 +1,33 @@
 import SwiftUI
 import AVFoundation
- 
+
 struct ContentView: View {
- 
+
     @StateObject private var pipManager = PiPManager()
     @StateObject private var timerManager = TimerManager()
+    @StateObject private var appearance = AppearanceManager()
     @State private var showAbout = true
     @State private var showControls = true
     @State private var hideControlsWorkItem: DispatchWorkItem?
- 
+
     var body: some View {
- 
+
         ScrollView {
- 
+
             VStack(spacing: 25) {
- 
+
                 Text("Floating Timer")
                     .font(.largeTitle)
                     .fontWeight(.bold)
- 
- 
+
+
                 // MARK: - Preview do PiP
- 
+
                 VStack(spacing: 10) {
- 
+
                     Text("Preview do PiP")
                         .font(.headline)
- 
+
                     PiPDisplayView(
                         displayLayer: pipManager.displayLayer
                     )
@@ -41,10 +42,10 @@ struct ContentView: View {
                         )
                     )
                 }
- 
- 
+
+
                 // MARK: - Cronômetro principal
- 
+
                 Text(timerManager.formattedTime)
                     .font(
                         .system(
@@ -53,73 +54,90 @@ struct ContentView: View {
                             design: .monospaced
                         )
                     )
- 
- 
+
+
                 // MARK: - Status
- 
+
                 Text(pipManager.status)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
- 
- 
+
+
                 // MARK: - Botões do cronômetro
- 
+
                 if showControls {
- 
+
                     HStack(spacing: 15) {
- 
+
                         Button {
- 
+
                             timerManager.start()
- 
+
                         } label: {
- 
+
                             Text("Iniciar")
                         }
                         .buttonStyle(.borderedProminent)
- 
- 
+
+
                         Button {
- 
+
                             timerManager.pause()
                             scheduleHideControls()
- 
+
                         } label: {
- 
+
                             Text("Pausar")
                         }
                         .buttonStyle(.bordered)
- 
- 
+
+
                         Button {
- 
+
                             timerManager.reset()
- 
+
                         } label: {
- 
+
                             Text("Resetar")
                         }
                         .buttonStyle(.bordered)
                     }
                     .transition(.opacity)
                 }
- 
- 
+
+
+                // MARK: - Personalização de cores
+
+                VStack(spacing: 10) {
+
+                    ColorPicker(
+                        "Cor de fundo",
+                        selection: $appearance.backgroundColor
+                    )
+
+                    ColorPicker(
+                        "Cor dos números",
+                        selection: $appearance.textColor
+                    )
+                }
+                .padding(.horizontal)
+
+
                 // MARK: - Abrir PiP
- 
+
                 Button {
- 
+
                     pipManager.startPiP()
- 
+
                 } label: {
- 
+
                     HStack {
- 
+
                         Image(
                             systemName: "pip.enter"
                         )
- 
+
                         Text(
                             "Abrir janela flutuante"
                         )
@@ -134,24 +152,24 @@ struct ContentView: View {
                     .borderedProminent
                 )
                 .padding(.horizontal)
- 
- 
+
+
                 // MARK: - Fechar PiP
- 
+
                 if pipManager.isPiPActive {
- 
+
                     Button {
- 
+
                         pipManager.stopPiP()
- 
+
                     } label: {
- 
+
                         HStack {
- 
+
                             Image(
                                 systemName: "pip.exit"
                             )
- 
+
                             Text(
                                 "Fechar janela flutuante"
                             )
@@ -162,82 +180,86 @@ struct ContentView: View {
                         .bordered
                     )
                 }
- 
- 
+
+
                 Spacer()
                     .frame(height: 30)
             }
             .padding()
         }
- 
-        // MARK: - CONECTA O CRONÔMETRO AO PiP
- 
+
+        // MARK: - CONECTA O CRONÔMETRO E APARÊNCIA AO PiP
+
         .onAppear {
- 
+
             pipManager.connectTimer(
                 timerManager
             )
- 
+
+            pipManager.connectAppearance(
+                appearance
+            )
+
             pipManager.onPiPInteraction = {
- 
+
                 withAnimation {
                     showControls = true
                 }
- 
+
                 if !timerManager.isRunning {
                     scheduleHideControls()
                 }
             }
         }
- 
+
         // MARK: - Toque na tela reexibe os botões
- 
+
         .onTapGesture {
- 
+
             if !showControls {
- 
+
                 hideControlsWorkItem?.cancel()
- 
+
                 withAnimation {
                     showControls = true
                 }
             }
         }
- 
+
         // MARK: - Tela "Desenvolvido por"
- 
+
         .sheet(isPresented: $showAbout) {
- 
+
             VStack(spacing: 18) {
- 
+
                 Image(systemName: "timer")
                     .font(.system(size: 50))
- 
+
                 Text("Floating Timer")
                     .font(.title2)
                     .fontWeight(.bold)
- 
+
                 Text("Developed by Peaga")
                     .font(.body)
                     .foregroundColor(.secondary)
- 
+
                 Link(
                     destination: URL(
                         string: "https://discord.com/users/1200776068278263808"
                     )!
                 ) {
- 
+
                     HStack {
- 
+
                         Image(systemName: "person.crop.circle.fill")
- 
+
                         Text("Discord: peagawx")
                     }
                     .font(.callout)
                 }
- 
+
                 Button("Começar") {
- 
+
                     showAbout = false
                 }
                 .buttonStyle(.borderedProminent)
@@ -247,74 +269,74 @@ struct ContentView: View {
             .presentationDetents([.medium])
         }
     }
- 
- 
+
+
     // MARK: - Agenda o sumiço dos botões 3s após pausar
- 
+
     private func scheduleHideControls() {
- 
+
         hideControlsWorkItem?.cancel()
- 
+
         let workItem = DispatchWorkItem {
- 
+
             withAnimation {
                 showControls = false
             }
         }
- 
+
         hideControlsWorkItem = workItem
- 
+
         DispatchQueue.main.asyncAfter(
             deadline: .now() + 3,
             execute: workItem
         )
     }
 }
- 
- 
+
+
 // MARK: - UIView que mostra AVSampleBufferDisplayLayer
- 
+
 struct PiPDisplayView: UIViewRepresentable {
- 
+
     let displayLayer: AVSampleBufferDisplayLayer
- 
- 
+
+
     func makeUIView(
         context: Context
     ) -> UIView {
- 
+
         let view = UIView()
- 
+
         view.backgroundColor = .black
- 
- 
+
+
         // Adiciona a camada do PiP
         view.layer.addSublayer(
             displayLayer
         )
- 
- 
+
+
         // Configuração visual
         displayLayer.videoGravity =
             .resizeAspect
- 
- 
+
+
         DispatchQueue.main.async {
- 
+
             displayLayer.frame =
                 view.bounds
         }
- 
- 
+
+
         return view
     }
- 
- 
+
+
     func updateUIView(
         _ uiView: UIView,
         context: Context
     ) {
- 
+
         displayLayer.frame =
             uiView.bounds
     }
