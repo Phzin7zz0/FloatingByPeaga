@@ -6,44 +6,12 @@ import CoreVideo
 final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
-    private var frameNumber: Int64 = 0
 
-    init(displayLayer: AVSampleBufferDisplayLayer) {
+    init(
+        displayLayer: AVSampleBufferDisplayLayer
+    ) {
 
         self.displayLayer = displayLayer
-
-        setupTimebase()
-    }
-
-
-    private func setupTimebase() {
-
-        var timebase: CMTimebase?
-
-        let status = CMTimebaseCreateWithSourceClock(
-            allocator: kCFAllocatorDefault,
-            sourceClock: CMClockGetHostTimeClock(),
-            timebaseOut: &timebase
-        )
-
-        guard status == noErr,
-              let timebase = timebase else {
-
-            print("❌ Erro ao criar Timebase")
-            return
-        }
-
-        CMTimebaseSetTime(
-            timebase,
-            time: .zero
-        )
-
-        CMTimebaseSetRate(
-            timebase,
-            rate: 1.0
-        )
-
-        displayLayer.controlTimebase = timebase
     }
 
 
@@ -52,13 +20,17 @@ final class PiPFrameProvider {
         guard let pixelBuffer =
                 TimerRenderer.createPixelBuffer(
                     text: text
-                ) else {
+                )
+        else {
 
+            print("❌ PixelBuffer não criado")
             return
         }
 
 
-        var formatDescription: CMVideoFormatDescription?
+        var formatDescription:
+            CMVideoFormatDescription?
+
 
         let formatStatus =
             CMVideoFormatDescriptionCreateForImageBuffer(
@@ -69,63 +41,93 @@ final class PiPFrameProvider {
 
 
         guard formatStatus == noErr,
-              let formatDescription = formatDescription else {
+              let formatDescription = formatDescription
+        else {
 
             print("❌ Erro FormatDescription")
             return
         }
 
 
-        let presentationTime =
-            CMClockGetTime(
-                CMClockGetHostTimeClock()
-            )
+        /*
+         IMPORTANTE:
 
+         Para conteúdo gerado manualmente,
+         usamos timestamps simples e crescentes.
+        */
 
-        let duration =
+        let currentTime =
             CMTime(
-                value: 1,
-                timescale: 30
+                seconds:
+                    CACurrentMediaTime(),
+                preferredTimescale: 600
             )
 
 
         var timingInfo =
             CMSampleTimingInfo(
-                duration: duration,
-                presentationTimeStamp: presentationTime,
-                decodeTimeStamp: .invalid
+                duration:
+                    CMTime(
+                        value: 1,
+                        timescale: 30
+                    ),
+
+                presentationTimeStamp:
+                    currentTime,
+
+                decodeTimeStamp:
+                    .invalid
             )
 
 
-        var sampleBuffer: CMSampleBuffer?
+        var sampleBuffer:
+            CMSampleBuffer?
+
 
         let result =
             CMSampleBufferCreateReadyWithImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: pixelBuffer,
-                formatDescription: formatDescription,
-                sampleTiming: &timingInfo,
-                sampleBufferOut: &sampleBuffer
+                allocator:
+                    kCFAllocatorDefault,
+
+                imageBuffer:
+                    pixelBuffer,
+
+                formatDescription:
+                    formatDescription,
+
+                sampleTiming:
+                    &timingInfo,
+
+                sampleBufferOut:
+                    &sampleBuffer
             )
 
 
         guard result == noErr,
-              let sampleBuffer = sampleBuffer else {
+              let sampleBuffer = sampleBuffer
+        else {
 
             print("❌ Erro SampleBuffer")
             return
         }
 
 
+        // Se deu erro, limpa a layer
+
         if displayLayer.status == .failed {
 
-            print("⚠️ Layer falhou, resetando")
+            print(
+                "⚠️ Layer falhou:",
+                displayLayer.error?
+                    .localizedDescription
+                    ?? "Erro desconhecido"
+            )
 
             displayLayer.flush()
-
-            frameNumber = 0
         }
 
+
+        // Envia frame
 
         if displayLayer.isReadyForMoreMediaData {
 
@@ -133,11 +135,11 @@ final class PiPFrameProvider {
                 sampleBuffer
             )
 
-            frameNumber += 1
-
         } else {
 
-            print("⚠️ Layer não pronta")
+            print(
+                "⚠️ Layer não está pronta"
+            )
         }
     }
 
@@ -145,7 +147,5 @@ final class PiPFrameProvider {
     func reset() {
 
         displayLayer.flush()
-
-        frameNumber = 0
     }
 }
