@@ -11,7 +11,8 @@ enum TimerRenderer {
         let height = 360
 
 
-        let attributes: [String: Any] = [
+        // Configurações do PixelBuffer
+        let pixelBufferAttributes: [String: Any] = [
 
             kCVPixelBufferCGImageCompatibilityKey
                 as String: true,
@@ -34,7 +35,7 @@ enum TimerRenderer {
 
             kCVPixelFormatType_32BGRA,
 
-            attributes as CFDictionary,
+            pixelBufferAttributes as CFDictionary,
 
             &pixelBuffer
         )
@@ -111,9 +112,7 @@ enum TimerRenderer {
         }
 
 
-        // IMPORTANTE:
-        // Limpa completamente o buffer
-
+        // Limpa completamente o fundo
         context.setFillColor(
             UIColor.black.cgColor
         )
@@ -129,7 +128,6 @@ enum TimerRenderer {
 
 
         // UIKit trabalha com eixo Y invertido
-
         context.translateBy(
             x: 0,
             y: CGFloat(height)
@@ -160,7 +158,8 @@ enum TimerRenderer {
             )
 
 
-        let attributes: [NSAttributedString.Key: Any] = [
+        // Configurações visuais do texto
+        let textAttributes: [NSAttributedString.Key: Any] = [
 
             .font:
                 font,
@@ -190,7 +189,7 @@ enum TimerRenderer {
             in: textRect,
 
             withAttributes:
-                attributes
+                textAttributes
         )
 
 
