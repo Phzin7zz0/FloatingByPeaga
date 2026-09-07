@@ -21,4 +21,3 @@ targets:
           - audio
           - picture-in-picture
         SWIFT_VERSION: "5.0"
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
