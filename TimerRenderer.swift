@@ -10,7 +10,8 @@ enum TimerRenderer {
 
         let attributes: [String: Any] = [
             kCVPixelBufferCGImageCompatibilityKey as String: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
         ]
 
         var pixelBuffer: CVPixelBuffer?
@@ -26,21 +27,14 @@ enum TimerRenderer {
 
         guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
-
-            print("ERRO AO CRIAR PIXEL BUFFER")
+            print("❌ ERRO CRIANDO BUFFER")
             return nil
         }
 
         CVPixelBufferLockBaseAddress(buffer, [])
 
-        defer {
+        guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
             CVPixelBufferUnlockBaseAddress(buffer, [])
-        }
-
-        guard let baseAddress =
-                CVPixelBufferGetBaseAddress(buffer) else {
-
-            print("SEM BASE ADDRESS")
             return nil
         }
 
@@ -51,35 +45,14 @@ enum TimerRenderer {
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo:
-                CGImageAlphaInfo
-                    .premultipliedFirst
-                    .rawValue
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
         ) else {
-
-            print("ERRO AO CRIAR CONTEXT")
+            CVPixelBufferUnlockBaseAddress(buffer, [])
             return nil
         }
 
-
-        // MARK: - Corrige imagem invertida
-
-        context.translateBy(
-            x: 0,
-            y: CGFloat(height)
-        )
-
-        context.scaleBy(
-            x: 1,
-            y: -1
-        )
-
-
-        // Fundo preto
-        context.setFillColor(
-            UIColor.black.cgColor
-        )
-
+        // TESTE: FUNDO VERMELHO FORTE
+        context.setFillColor(UIColor.red.cgColor)
         context.fill(
             CGRect(
                 x: 0,
@@ -89,70 +62,35 @@ enum TimerRenderer {
             )
         )
 
-
-        // Fundo vermelho para teste/visual
-        context.setFillColor(
-            UIColor.red.cgColor
-        )
-
-        context.fill(
-            CGRect(
-                x: 10,
-                y: 10,
-                width: width - 20,
-                height: height - 20
-            )
-        )
-
-
-        // Desenha texto
         UIGraphicsPushContext(context)
 
-        let paragraphStyle =
-            NSMutableParagraphStyle()
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
 
-        paragraphStyle.alignment =
-            .center
-
-
-        let textAttributes:
-            [NSAttributedString.Key: Any] = [
-
-                .font:
-                    UIFont.systemFont(
-                        ofSize: 110,
-                        weight: .bold
-                    ),
-
-                .foregroundColor:
-                    UIColor.white,
-
-                .paragraphStyle:
-                    paragraphStyle
-            ]
-
-
-        let textRect = CGRect(
-            x: 0,
-            y: 110,
-            width: width,
-            height: 140
-        )
-
+        let textAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(
+                ofSize: 100,
+                weight: .bold
+            ),
+            .foregroundColor: UIColor.white,
+            .paragraphStyle: paragraphStyle
+        ]
 
         text.draw(
-            in: textRect,
+            in: CGRect(
+                x: 0,
+                y: 120,
+                width: width,
+                height: 120
+            ),
             withAttributes: textAttributes
         )
 
-
         UIGraphicsPopContext()
 
+        CVPixelBufferUnlockBaseAddress(buffer, [])
 
-        print(
-            "FRAME CRIADO:",
-            text
-        )
+        print("🟥 BUFFER CRIADO:", text)
 
         return buffer
     }
