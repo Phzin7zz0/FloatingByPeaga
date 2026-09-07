@@ -11,17 +11,13 @@ final class PiPManager: NSObject, ObservableObject {
 
     let displayLayer = AVSampleBufferDisplayLayer()
 
-    private var pipController:
-        AVPictureInPictureController?
+    private var pipController: AVPictureInPictureController?
 
-    private var frameProvider:
-        PiPFrameProvider?
+    private var frameProvider: PiPFrameProvider?
 
-    private var renderTimer:
-        Timer?
+    private var renderTimer: Timer?
 
-    private weak var timerManager:
-        TimerManager?
+    private weak var timerManager: TimerManager?
 
 
     override init() {
@@ -29,7 +25,6 @@ final class PiPManager: NSObject, ObservableObject {
         super.init()
 
         DispatchQueue.main.async {
-
             self.setupPiP()
         }
     }
@@ -39,12 +34,9 @@ final class PiPManager: NSObject, ObservableObject {
         _ timerManager: TimerManager
     ) {
 
-        self.timerManager =
-            timerManager
+        self.timerManager = timerManager
 
-        print(
-            "TIMER CONECTADO"
-        )
+        print("TIMER CONECTADO")
     }
 
 
@@ -54,8 +46,7 @@ final class PiPManager: NSObject, ObservableObject {
             .isPictureInPictureSupported()
         else {
 
-            status =
-                "PiP não suportado"
+            status = "PiP não suportado"
 
             return
         }
@@ -71,9 +62,7 @@ final class PiPManager: NSObject, ObservableObject {
                 mode: .moviePlayback
             )
 
-            try audioSession.setActive(
-                true
-            )
+            try audioSession.setActive(true)
 
         } catch {
 
@@ -84,14 +73,12 @@ final class PiPManager: NSObject, ObservableObject {
         }
 
 
-        displayLayer.videoGravity =
-            .resizeAspect
+        displayLayer.videoGravity = .resizeAspect
 
 
         frameProvider =
             PiPFrameProvider(
-                displayLayer:
-                    displayLayer
+                displayLayer: displayLayer
             )
 
 
@@ -116,26 +103,22 @@ final class PiPManager: NSObject, ObservableObject {
                 )
 
 
-            pipController?.delegate =
-                self
+            pipController?.delegate = self
 
 
             pipController?
-                .requiresLinearPlayback =
-                    false
+                .requiresLinearPlayback = false
 
 
             DispatchQueue.main.asyncAfter(
-                deadline:
-                    .now() + 0.3
+                deadline: .now() + 0.3
             ) {
 
                 self.startFrameUpdates()
             }
 
 
-            status =
-                "Renderizando..."
+            status = "Renderizando..."
         }
     }
 
@@ -151,8 +134,7 @@ final class PiPManager: NSObject, ObservableObject {
                 withTimeInterval:
                     1.0 / 30.0,
 
-                repeats:
-                    true
+                repeats: true
 
             ) { [weak self] _ in
 
@@ -178,14 +160,11 @@ final class PiPManager: NSObject, ObservableObject {
 
         RunLoop.main.add(
             renderTimer!,
-            forMode:
-                .common
+            forMode: .common
         )
 
 
-        print(
-            "RENDER INICIADO"
-        )
+        print("RENDER INICIADO")
     }
 
 
@@ -195,16 +174,14 @@ final class PiPManager: NSObject, ObservableObject {
                 pipController
         else {
 
-            status =
-                "Controller não criado"
+            status = "Controller não criado"
 
             return
         }
 
 
         DispatchQueue.main.asyncAfter(
-            deadline:
-                .now() + 1.0
+            deadline: .now() + 1.0
         ) {
 
             print("")
@@ -276,19 +253,18 @@ extension PiPManager:
     AVPictureInPictureControllerDelegate {
 
 
-    func pictureInPictureController(
-    _ pictureInPictureController: AVPictureInPictureController,
-    didTransitionToRenderSize newRenderSize: CMVideoDimensions
-) {
-}
+    func pictureInPictureControllerDidStartPictureInPicture(
+
+        _ pictureInPictureController:
+            AVPictureInPictureController
+
+    ) {
 
         DispatchQueue.main.async {
 
-            self.isPiPActive =
-                true
+            self.isPiPActive = true
 
-            self.status =
-                "PiP aberto"
+            self.status = "PiP aberto"
         }
     }
 
@@ -322,11 +298,9 @@ extension PiPManager:
 
         DispatchQueue.main.async {
 
-            self.isPiPActive =
-                false
+            self.isPiPActive = false
 
-            self.status =
-                "PiP fechado"
+            self.status = "PiP fechado"
         }
     }
 }
@@ -389,8 +363,7 @@ extension PiPManager:
 
         return CMTimeRange(
 
-            start:
-                .zero,
+            start: .zero,
 
             duration:
                 CMTime(
@@ -423,5 +396,26 @@ extension PiPManager:
 
             completionHandler()
         }
+    }
+
+
+    // Necessário nas versões mais recentes do SDK/iOS
+    func pictureInPictureController(
+
+        _ pictureInPictureController:
+            AVPictureInPictureController,
+
+        didTransitionToRenderSize
+            newRenderSize:
+                CMVideoDimensions
+
+    ) {
+
+        print(
+            "PiP mudou tamanho:",
+            newRenderSize.width,
+            "x",
+            newRenderSize.height
+        )
     }
 }
