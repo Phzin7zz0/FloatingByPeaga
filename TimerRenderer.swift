@@ -1,88 +1,105 @@
-import Foundation
 import UIKit
 import CoreVideo
-import CoreMedia
 
-final class TimerRenderer {
+enum TimerRenderer {
 
-    static func createPixelBuffer(
-        text: String,
-        size: CGSize = CGSize(width: 600, height: 220)
-    ) -> CVPixelBuffer? {
+    static func createPixelBuffer(text: String) -> CVPixelBuffer? {
 
-        var pixelBuffer: CVPixelBuffer?
+        let width = 640
+        let height = 360
 
         let attributes: [String: Any] = [
             kCVPixelBufferCGImageCompatibilityKey as String: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
         ]
 
-        let result = CVPixelBufferCreate(
+        var pixelBuffer: CVPixelBuffer?
+
+        let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
-            Int(size.width),
-            Int(size.height),
+            width,
+            height,
             kCVPixelFormatType_32BGRA,
             attributes as CFDictionary,
             &pixelBuffer
         )
 
-        guard result == kCVReturnSuccess,
+        guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
+            print("❌ ERRO CRIANDO BUFFER")
             return nil
         }
 
         CVPixelBufferLockBaseAddress(buffer, [])
 
-        defer {
+        guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
             CVPixelBufferUnlockBaseAddress(buffer, [])
+            return nil
         }
 
         guard let context = CGContext(
-            data: CVPixelBufferGetBaseAddress(buffer),
-            width: Int(size.width),
-            height: Int(size.height),
+            data: baseAddress,
+            width: width,
+            height: height,
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
         ) else {
+            CVPixelBufferUnlockBaseAddress(buffer, [])
             return nil
         }
 
-        // Fundo preto
-        context.setFillColor(UIColor.black.cgColor)
-        context.fill(CGRect(origin: .zero, size: size))
+        // IMPORTANTE: CGContext criado direto sobre a memória do
+        // CVPixelBuffer tem origem no canto inferior esquerdo (padrão
+        // do Core Graphics). O buffer de vídeo/AVSampleBufferDisplayLayer
+        // espera a linha 0 no topo, e o UIKit também desenha texto
+        // assumindo origem no topo. Sem esse flip, tudo sai espelhado
+        // verticalmente (de cabeça para baixo).
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1.0, y: -1.0)
 
-        // Desenha o texto
+        // TESTE: FUNDO VERMELHO FORTE
+        context.setFillColor(UIColor.red.cgColor)
+        context.fill(
+            CGRect(
+                x: 0,
+                y: 0,
+                width: width,
+                height: height
+            )
+        )
+
         UIGraphicsPushContext(context)
 
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
 
-        let font = UIFont.monospacedDigitSystemFont(
-            ofSize: 95,
-            weight: .bold
-        )
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
+        let textAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(
+                ofSize: 100,
+                weight: .bold
+            ),
             .foregroundColor: UIColor.white,
             .paragraphStyle: paragraphStyle
         ]
 
-        let rect = CGRect(
-            x: 0,
-            y: (size.height - 115) / 2,
-            width: size.width,
-            height: 115
-        )
-
-        (text as NSString).draw(
-            in: rect,
-            withAttributes: attributes
+        text.draw(
+            in: CGRect(
+                x: 0,
+                y: 120,
+                width: width,
+                height: 120
+            ),
+            withAttributes: textAttributes
         )
 
         UIGraphicsPopContext()
+
+        CVPixelBufferUnlockBaseAddress(buffer, [])
+
+        print("🟥 BUFFER CRIADO:", text)
 
         return buffer
     }
