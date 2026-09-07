@@ -5,6 +5,7 @@ struct ContentView: View {
  
     @StateObject private var pipManager = PiPManager()
     @StateObject private var timerManager = TimerManager()
+    @State private var showAbout = true
  
     var body: some View {
  
@@ -169,6 +170,49 @@ struct ContentView: View {
             pipManager.connectTimer(
                 timerManager
             )
+        }
+ 
+        // MARK: - Tela "Desenvolvido por"
+ 
+        .sheet(isPresented: $showAbout) {
+ 
+            VStack(spacing: 18) {
+ 
+                Image(systemName: "timer")
+                    .font(.system(size: 50))
+ 
+                Text("Floating Timer")
+                    .font(.title2)
+                    .fontWeight(.bold)
+ 
+                Text("Developed by Peaga")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+ 
+                Link(
+                    destination: URL(
+                        string: "https://discord.com/users/1200776068278263808"
+                    )!
+                ) {
+ 
+                    HStack {
+ 
+                        Image(systemName: "person.crop.circle.fill")
+ 
+                        Text("Discord: peagawx")
+                    }
+                    .font(.callout)
+                }
+ 
+                Button("Começar") {
+ 
+                    showAbout = false
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 8)
+            }
+            .padding(30)
+            .presentationDetents([.medium])
         }
     }
 }
