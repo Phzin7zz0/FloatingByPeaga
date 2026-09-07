@@ -1,4 +1,3 @@
-```swift
 import Foundation
 import Combine
 
@@ -98,4 +97,3 @@ final class TimerManager: ObservableObject {
         )
     }
 }
-```
