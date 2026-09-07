@@ -13,54 +13,37 @@ final class PiPManager: NSObject, ObservableObject {
 
     private var pipController: AVPictureInPictureController?
     private var frameProvider: PiPFrameProvider?
+
+    // Conexão com o cronômetro principal
+    weak var timerManager: TimerManager?
+
+    // Timer para atualizar visualmente o PiP
     private var renderTimer: Timer?
 
-    // Referência ao cronômetro principal
-    private weak var timerManager: TimerManager?
-
+    private var timebase: CMTimebase?
 
     override init() {
-
         super.init()
 
         DispatchQueue.main.async {
-
             self.setupPiP()
         }
     }
 
 
-    // MARK: - Conectar cronômetro
-
-    func connectTimer(
-        _ timerManager: TimerManager
-    ) {
-
-        self.timerManager = timerManager
-
-        print("✅ Timer conectado ao PiP")
-    }
-
-
-    // MARK: - Configurar PiP
+    // MARK: - Setup
 
     private func setupPiP() {
 
-        guard AVPictureInPictureController
-            .isPictureInPictureSupported()
-        else {
-
+        guard AVPictureInPictureController.isPictureInPictureSupported() else {
             status = "PiP não suportado"
             return
         }
 
-
-        // MARK: Configurar áudio
-
+        // Áudio necessário para manter PiP funcionando
         do {
 
-            let audioSession =
-                AVAudioSession.sharedInstance()
+            let audioSession = AVAudioSession.sharedInstance()
 
             try audioSession.setCategory(
                 .playback,
@@ -73,62 +56,77 @@ final class PiPManager: NSObject, ObservableObject {
         } catch {
 
             status = "Erro no áudio"
-
-            print(
-                "Erro áudio:",
-                error
-            )
-
+            print("Erro áudio:", error)
             return
         }
 
 
-        // MARK: Configuração visual
-
-        displayLayer.videoGravity =
-            .resizeAspect
+        // Configuração da camada de vídeo
+        displayLayer.videoGravity = .resizeAspect
 
 
-        // MARK: Provider dos frames
+        // MARK: Timebase
 
-        frameProvider =
-            PiPFrameProvider(
-                displayLayer: displayLayer
-            )
+        var newTimebase: CMTimebase?
+
+        let result = CMTimebaseCreateWithSourceClock(
+            allocator: kCFAllocatorDefault,
+            sourceClock: CMClockGetHostTimeClock(),
+            timebaseOut: &newTimebase
+        )
+
+        guard result == noErr,
+              let newTimebase = newTimebase else {
+
+            print("Erro ao criar Timebase")
+            status = "Erro Timebase"
+            return
+        }
+
+        timebase = newTimebase
+
+        CMTimebaseSetTime(
+            newTimebase,
+            time: .zero
+        )
+
+        CMTimebaseSetRate(
+            newTimebase,
+            rate: 1.0
+        )
+
+        displayLayer.controlTimebase = newTimebase
 
 
-        // MARK: Criar Controller PiP
+        // MARK: Frame Provider
+
+        frameProvider = PiPFrameProvider(
+            displayLayer: displayLayer
+        )
+
+
+        // MARK: PiP Controller
 
         if #available(iOS 15.0, *) {
 
             let contentSource =
                 AVPictureInPictureController.ContentSource(
-                    sampleBufferDisplayLayer:
-                        displayLayer,
-
-                    playbackDelegate:
-                        self
+                    sampleBufferDisplayLayer: displayLayer,
+                    playbackDelegate: self
                 )
-
 
             pipController =
                 AVPictureInPictureController(
-                    contentSource:
-                        contentSource
+                    contentSource: contentSource
                 )
 
-
-            pipController?.delegate =
-                self
-
+            pipController?.delegate = self
 
             // Permite controles no PiP
-            pipController?
-                .requiresLinearPlayback =
-                    false
+            pipController?.requiresLinearPlayback = false
 
 
-            // Aguarda inicialização
+            // Começa a enviar frames
             DispatchQueue.main.asyncAfter(
                 deadline: .now() + 0.5
             ) {
@@ -136,10 +134,22 @@ final class PiPManager: NSObject, ObservableObject {
                 self.startFrameUpdates()
             }
 
-
-            status =
-                "Renderizando preview..."
+            status = "Preview pronto"
         }
+    }
+
+
+    // MARK: - Conectar TimerManager
+
+    func connectTimer(
+        _ timerManager: TimerManager
+    ) {
+
+        self.timerManager = timerManager
+
+        print("TimerManager conectado ao PiP")
+
+        updateFrame()
     }
 
 
@@ -149,45 +159,42 @@ final class PiPManager: NSObject, ObservableObject {
 
         renderTimer?.invalidate()
 
+        renderTimer = Timer.scheduledTimer(
+            withTimeInterval: 1.0 / 30.0,
+            repeats: true
+        ) { [weak self] _ in
 
-        renderTimer =
-            Timer.scheduledTimer(
-                withTimeInterval:
-                    1.0 / 30.0,
-
-                repeats:
-                    true
-            ) { [weak self] _ in
-
-                guard let self = self else {
-                    return
-                }
-
-
-                // Pega o tempo REAL do TimerManager
-                let text =
-                    self.timerManager?
-                        .formattedTime
-                    ?? "00:00.00"
-
-
-                // Atualiza frame
-                self.frameProvider?
-                    .update(
-                        text: text
-                    )
+            guard let self = self else {
+                return
             }
 
+            self.updateFrame()
+        }
 
         RunLoop.main.add(
             renderTimer!,
-            forMode:
-                .common
+            forMode: .common
         )
 
+        print("Renderização PiP iniciada")
+    }
 
-        print(
-            "✅ Renderização iniciada"
+
+    private func updateFrame() {
+
+        guard let timerManager = timerManager else {
+
+            // Preview inicial
+            frameProvider?.update(
+                text: "00:00.00"
+            )
+
+            return
+        }
+
+
+        frameProvider?.update(
+            text: timerManager.formattedTime
         )
     }
 
@@ -196,78 +203,35 @@ final class PiPManager: NSObject, ObservableObject {
 
     func startPiP() {
 
-        guard let pipController =
-                pipController
-        else {
+        guard let pipController = pipController else {
 
-            status =
-                "Controller não criado"
-
+            status = "Controller não criado"
             return
         }
 
 
-        status =
-            "Verificando PiP..."
-
-
         DispatchQueue.main.asyncAfter(
-            deadline:
-                .now() + 0.5
+            deadline: .now() + 0.3
         ) {
 
-            let possible =
-                pipController
-                    .isPictureInPicturePossible
+            if pipController.isPictureInPicturePossible {
 
+                self.status = "Abrindo PiP..."
 
-            let supported =
-                AVPictureInPictureController
-                    .isPictureInPictureSupported()
-
-
-            let layerStatus =
-                self.displayLayer
-                    .status
-                    .rawValue
-
-
-            let error =
-                self.displayLayer
-                    .error?
-                    .localizedDescription
-                ?? "Nenhum"
-
-
-            print("")
-            print("========== PiP DEBUG ==========")
-            print("SUPPORTED:", supported)
-            print("POSSIBLE:", possible)
-            print("LAYER STATUS:", layerStatus)
-            print("ERROR:", error)
-            print("================================")
-            print("")
-
-
-            if possible {
-
-                self.status =
-                    "Abrindo PiP..."
-
-
-                pipController
-                    .startPictureInPicture()
+                pipController.startPictureInPicture()
 
             } else {
 
-                self.status =
-                    """
-                    PiP indisponível
+                self.status = "PiP indisponível"
 
-                    Poss: \(possible)
-                    Layer: \(layerStatus)
-                    Error: \(error)
-                    """
+                print(
+                    "PiP não disponível"
+                )
+
+                print(
+                    "Layer:",
+                    self.displayLayer.status.rawValue
+                )
             }
         }
     }
@@ -277,15 +241,13 @@ final class PiPManager: NSObject, ObservableObject {
 
     func stopPiP() {
 
-        pipController?
-            .stopPictureInPicture()
+        pipController?.stopPictureInPicture()
     }
 
 
     deinit {
 
-        renderTimer?
-            .invalidate()
+        renderTimer?.invalidate()
     }
 }
 
@@ -303,8 +265,7 @@ extension PiPManager:
 
         DispatchQueue.main.async {
 
-            self.isPiPActive =
-                true
+            self.isPiPActive = true
 
             self.status =
                 "Janela flutuante aberta!"
@@ -335,8 +296,7 @@ extension PiPManager:
 
         DispatchQueue.main.async {
 
-            self.isPiPActive =
-                false
+            self.isPiPActive = false
 
             self.status =
                 "PiP fechado"
@@ -345,85 +305,84 @@ extension PiPManager:
 }
 
 
-// MARK: - Playback Delegate
+// MARK: - Controles do PiP
 
 @available(iOS 15.0, *)
-
 extension PiPManager:
     AVPictureInPictureSampleBufferPlaybackDelegate {
 
 
-    // Botão Play/Pause do PiP
+    // Quando usuário aperta Play/Pause no PiP
     func pictureInPictureController(
         _ pictureInPictureController:
             AVPictureInPictureController,
 
-        setPlaying playing:
-            Bool
+        setPlaying playing: Bool
     ) {
 
         DispatchQueue.main.async {
 
+            guard let timerManager =
+                    self.timerManager else {
+                return
+            }
+
+
             if playing {
 
-                self.timerManager?
-                    .start()
+                timerManager.start()
 
             } else {
 
-                self.timerManager?
-                    .pause()
+                timerManager.pause()
             }
         }
     }
 
 
+    // Diz ao sistema se está pausado
+    func pictureInPictureControllerIsPlaybackPaused(
+        _ pictureInPictureController:
+            AVPictureInPictureController
+    ) -> Bool {
+
+        guard let timerManager =
+                timerManager else {
+
+            return true
+        }
+
+        return !timerManager.isRunning
+    }
+
+
+    // Tempo disponível para reprodução
     func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController:
             AVPictureInPictureController
     ) -> CMTimeRange {
 
         return CMTimeRange(
-            start:
-                .zero,
+            start: .zero,
 
-            duration:
-                CMTime(
-                    seconds:
-                        3600,
-
-                    preferredTimescale:
-                        600
-                )
+            duration: CMTime(
+                seconds: 86400,
+                preferredTimescale: 600
+            )
         )
     }
 
 
-    func pictureInPictureControllerIsPlaybackPaused(
-        _ pictureInPictureController:
-            AVPictureInPictureController
-    ) -> Bool {
-
-        // Diz ao PiP se está pausado
-        return !(
-            timerManager?
-                .isRunning
-            ?? false
-        )
-    }
-
-
+    // Botões avançar/voltar
     func pictureInPictureController(
         _ pictureInPictureController:
             AVPictureInPictureController,
 
-        skipByInterval
-            skipInterval:
-                CMTime,
+        skipByInterval skipInterval:
+            CMTime,
 
-        completion
-            completionHandler:
-                @escaping @Sendable () -> Void
+        completion completionHandler:
+            @escaping @Sendable () -> Void
     ) {
 
         completionHandler()
@@ -436,11 +395,11 @@ extension PiPManager:
 
         didTransitionToRenderSize
             newRenderSize:
-                CMVideoDimensions
+            CMVideoDimensions
     ) {
 
         print(
-            "📐 Novo tamanho PiP:",
+            "Novo tamanho:",
             newRenderSize.width,
             "x",
             newRenderSize.height
