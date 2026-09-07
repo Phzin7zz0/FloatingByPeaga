@@ -391,7 +391,17 @@ extension PiPManager:
             @escaping @Sendable () -> Void
     ) {
 
-        completionHandler()
+        DispatchQueue.main.async {
+
+            // skipInterval positivo = botão de AVANÇAR
+            // skipInterval negativo = botão de VOLTAR
+            if skipInterval.seconds > 0 {
+
+                self.timerManager?.reset()
+            }
+
+            completionHandler()
+        }
     }
 
 
