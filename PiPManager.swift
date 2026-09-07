@@ -17,6 +17,9 @@ final class PiPManager: NSObject, ObservableObject {
     // Conexão com o cronômetro principal
     weak var timerManager: TimerManager?
  
+    // Chamado sempre que o usuário toca no play/pause da janela flutuante (PiP)
+    var onPiPInteraction: (() -> Void)?
+ 
     // Timer para atualizar visualmente o PiP
     private var renderTimer: Timer?
  
@@ -342,6 +345,8 @@ extension PiPManager:
  
                 timerManager.pause()
             }
+ 
+            self.onPiPInteraction?()
         }
     }
  
