@@ -1,88 +1,132 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import CoreVideo
 
 final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
-    init(displayLayer: AVSampleBufferDisplayLayer) {
+    init(
+        displayLayer: AVSampleBufferDisplayLayer
+    ) {
+
         self.displayLayer = displayLayer
     }
 
+
     func update(text: String) {
 
-        guard let pixelBuffer = TimerRenderer.createPixelBuffer(text: text) else {
-            print("❌ PixelBuffer não criado")
+        guard let pixelBuffer =
+                TimerRenderer.createPixelBuffer(
+                    text: text
+                ) else {
+
+            print("❌ ERRO: PixelBuffer não criado")
             return
         }
 
-        var formatDescription: CMVideoFormatDescription?
 
-        let formatStatus = CMVideoFormatDescriptionCreateForImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: pixelBuffer,
-            formatDescriptionOut: &formatDescription
-        )
+        var formatDescription:
+            CMVideoFormatDescription?
+
+
+        let formatStatus =
+            CMVideoFormatDescriptionCreateForImageBuffer(
+                allocator: kCFAllocatorDefault,
+                imageBuffer: pixelBuffer,
+                formatDescriptionOut: &formatDescription
+            )
+
 
         guard formatStatus == noErr,
-              let formatDescription else {
-            print("❌ FormatDescription não criado")
+              let formatDescription =
+                formatDescription else {
+
+            print("❌ ERRO: FormatDescription")
             return
         }
 
-        let presentationTime = CMClockGetTime(
-            CMClockGetHostTimeClock()
-        )
 
-        var timingInfo = CMSampleTimingInfo(
-            duration: CMTime.invalid,
-            presentationTimeStamp: presentationTime,
-            decodeTimeStamp: CMTime.invalid
-        )
+        // Usa o relógio atual do sistema.
+        // Isso evita que os frames fiquem "atrasados"
+        // e travem no primeiro frame.
+
+        let currentTime =
+            CMClockGetTime(
+                CMClockGetHostTimeClock()
+            )
+
+
+        let duration =
+            CMTime(
+                value: 1,
+                timescale: 30
+            )
+
+
+        var timingInfo =
+            CMSampleTimingInfo(
+                duration: duration,
+                presentationTimeStamp: currentTime,
+                decodeTimeStamp: .invalid
+            )
+
 
         var sampleBuffer: CMSampleBuffer?
 
-        let result = CMSampleBufferCreateReadyWithImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: pixelBuffer,
-            formatDescription: formatDescription,
-            sampleTiming: &timingInfo,
-            sampleBufferOut: &sampleBuffer
-        )
+
+        let result =
+            CMSampleBufferCreateReadyWithImageBuffer(
+                allocator: kCFAllocatorDefault,
+                imageBuffer: pixelBuffer,
+                formatDescription: formatDescription,
+                sampleTiming: &timingInfo,
+                sampleBufferOut: &sampleBuffer
+            )
+
 
         guard result == noErr,
-              let sampleBuffer else {
-            print("❌ SampleBuffer não criado")
+              let sampleBuffer =
+                sampleBuffer else {
+
+            print("❌ ERRO: SampleBuffer")
             return
         }
 
+
+        // Se a layer falhou, limpa
         if displayLayer.status == .failed {
 
             print(
                 "⚠️ DISPLAY LAYER FALHOU:",
-                displayLayer.error?.localizedDescription ?? "erro desconhecido"
+                displayLayer.error?
+                    .localizedDescription
+                    ?? "Erro desconhecido"
             )
 
             displayLayer.flush()
         }
 
+
+        // Envia novo frame
         if displayLayer.isReadyForMoreMediaData {
 
-            displayLayer.enqueue(sampleBuffer)
-
-            print("✅ FRAME ENVIADO:", text)
+            displayLayer.enqueue(
+                sampleBuffer
+            )
 
         } else {
 
-            print("⚠️ LAYER NÃO ESTÁ PRONTO")
+            print(
+                "⚠️ Layer não pronta"
+            )
         }
     }
+
 
     func reset() {
 
         displayLayer.flush()
-
-        print("🔄 DISPLAY LAYER RESETADO")
     }
 }
