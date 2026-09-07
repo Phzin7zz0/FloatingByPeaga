@@ -21,27 +21,14 @@ struct ContentView: View {
                     .fontWeight(.bold)
 
 
-                // MARK: - Preview do PiP
+                // MARK: - Preview do PiP (escondido, mas mantido vivo
+                // para o pipeline de frames continuar "aquecido")
 
-                VStack(spacing: 10) {
-
-                    Text("Preview do PiP")
-                        .font(.headline)
-
-                    PiPDisplayView(
-                        displayLayer: pipManager.displayLayer
-                    )
-                    .frame(
-                        width: 320,
-                        height: 180
-                    )
-                    .background(Color.black)
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: 15
-                        )
-                    )
-                }
+                PiPDisplayView(
+                    displayLayer: pipManager.displayLayer
+                )
+                .frame(width: 1, height: 1)
+                .opacity(0)
 
 
                 // MARK: - Cronômetro principal
