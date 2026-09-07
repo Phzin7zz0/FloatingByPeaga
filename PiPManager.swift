@@ -1,60 +1,449 @@
-name: Build FloatingByPeaga
+import Foundation
+import AVFoundation
+import AVKit
+import UIKit
+import CoreMedia
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+final class PiPManager: NSObject, ObservableObject {
 
-jobs:
-  build:
-    runs-on: macos-latest
+    @Published var isPiPActive = false
+    @Published var status = "Inicializando..."
 
-    steps:
-      - name: Baixar projeto
-        uses: actions/checkout@v4
+    let displayLayer = AVSampleBufferDisplayLayer()
 
-      - name: Instalar XcodeGen
-        run: brew install xcodegen
+    private var pipController: AVPictureInPictureController?
+    private var frameProvider: PiPFrameProvider?
+    private var renderTimer: Timer?
 
-      - name: Criar projeto Xcode
-        run: xcodegen generate
+    // Referência ao cronômetro principal
+    private weak var timerManager: TimerManager?
 
-      - name: Compilar App
-        run: |
-          xcodebuild \
-            -project FloatingByPeaga.xcodeproj \
-            -scheme FloatingByPeaga \
-            -sdk iphoneos \
-            -configuration Release \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-      - name: Criar IPA corretamente
-        run: |
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -type d -name "*.app" | head -n 1)
-          echo "App encontrado:"
-          echo "$APP_PATH"
-          rm -rf Payload
-          rm -f FloatingByPeaga.ipa
-          mkdir -p Payload
-          cp -R "$APP_PATH" Payload/
-          ditto -c -k --sequesterRsrc --keepParent Payload FloatingByPeaga.ipa
-          echo "===== TESTANDO ====="
-          unzip -t FloatingByPeaga.ipa
-          echo "===== ESTRUTURA ====="
-          unzip -l FloatingByPeaga.ipa
-          echo "===== TIPO DO ARQUIVO ====="
-          file FloatingByPeaga.ipa
-          echo "===== INFO.PLIST ====="
-          plutil -p Payload/FloatingByPeaga.app/Info.plist
-          echo "===== TAMANHO ====="
-          ls -lh FloatingByPeaga.ipa
-          echo "===== SHA256 ====="
-          shasum -a 256 FloatingByPeaga.ipa
-      - name: Enviar IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: FloatingByPeaga-IPA
-          path: FloatingByPeaga.ipa
-          if-no-files-found: error
+
+    override init() {
+
+        super.init()
+
+        DispatchQueue.main.async {
+
+            self.setupPiP()
+        }
+    }
+
+
+    // MARK: - Conectar cronômetro
+
+    func connectTimer(
+        _ timerManager: TimerManager
+    ) {
+
+        self.timerManager = timerManager
+
+        print("✅ Timer conectado ao PiP")
+    }
+
+
+    // MARK: - Configurar PiP
+
+    private func setupPiP() {
+
+        guard AVPictureInPictureController
+            .isPictureInPictureSupported()
+        else {
+
+            status = "PiP não suportado"
+            return
+        }
+
+
+        // MARK: Configurar áudio
+
+        do {
+
+            let audioSession =
+                AVAudioSession.sharedInstance()
+
+            try audioSession.setCategory(
+                .playback,
+                mode: .moviePlayback,
+                options: []
+            )
+
+            try audioSession.setActive(true)
+
+        } catch {
+
+            status = "Erro no áudio"
+
+            print(
+                "Erro áudio:",
+                error
+            )
+
+            return
+        }
+
+
+        // MARK: Configuração visual
+
+        displayLayer.videoGravity =
+            .resizeAspect
+
+
+        // MARK: Provider dos frames
+
+        frameProvider =
+            PiPFrameProvider(
+                displayLayer: displayLayer
+            )
+
+
+        // MARK: Criar Controller PiP
+
+        if #available(iOS 15.0, *) {
+
+            let contentSource =
+                AVPictureInPictureController.ContentSource(
+                    sampleBufferDisplayLayer:
+                        displayLayer,
+
+                    playbackDelegate:
+                        self
+                )
+
+
+            pipController =
+                AVPictureInPictureController(
+                    contentSource:
+                        contentSource
+                )
+
+
+            pipController?.delegate =
+                self
+
+
+            // Permite controles no PiP
+            pipController?
+                .requiresLinearPlayback =
+                    false
+
+
+            // Aguarda inicialização
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.5
+            ) {
+
+                self.startFrameUpdates()
+            }
+
+
+            status =
+                "Renderizando preview..."
+        }
+    }
+
+
+    // MARK: - Atualização dos frames
+
+    private func startFrameUpdates() {
+
+        renderTimer?.invalidate()
+
+
+        renderTimer =
+            Timer.scheduledTimer(
+                withTimeInterval:
+                    1.0 / 30.0,
+
+                repeats:
+                    true
+            ) { [weak self] _ in
+
+                guard let self = self else {
+                    return
+                }
+
+
+                // Pega o tempo REAL do TimerManager
+                let text =
+                    self.timerManager?
+                        .formattedTime
+                    ?? "00:00.00"
+
+
+                // Atualiza frame
+                self.frameProvider?
+                    .update(
+                        text: text
+                    )
+            }
+
+
+        RunLoop.main.add(
+            renderTimer!,
+            forMode:
+                .common
+        )
+
+
+        print(
+            "✅ Renderização iniciada"
+        )
+    }
+
+
+    // MARK: - Abrir PiP
+
+    func startPiP() {
+
+        guard let pipController =
+                pipController
+        else {
+
+            status =
+                "Controller não criado"
+
+            return
+        }
+
+
+        status =
+            "Verificando PiP..."
+
+
+        DispatchQueue.main.asyncAfter(
+            deadline:
+                .now() + 0.5
+        ) {
+
+            let possible =
+                pipController
+                    .isPictureInPicturePossible
+
+
+            let supported =
+                AVPictureInPictureController
+                    .isPictureInPictureSupported()
+
+
+            let layerStatus =
+                self.displayLayer
+                    .status
+                    .rawValue
+
+
+            let error =
+                self.displayLayer
+                    .error?
+                    .localizedDescription
+                ?? "Nenhum"
+
+
+            print("")
+            print("========== PiP DEBUG ==========")
+            print("SUPPORTED:", supported)
+            print("POSSIBLE:", possible)
+            print("LAYER STATUS:", layerStatus)
+            print("ERROR:", error)
+            print("================================")
+            print("")
+
+
+            if possible {
+
+                self.status =
+                    "Abrindo PiP..."
+
+
+                pipController
+                    .startPictureInPicture()
+
+            } else {
+
+                self.status =
+                    """
+                    PiP indisponível
+
+                    Poss: \(possible)
+                    Layer: \(layerStatus)
+                    Error: \(error)
+                    """
+            }
+        }
+    }
+
+
+    // MARK: - Fechar PiP
+
+    func stopPiP() {
+
+        pipController?
+            .stopPictureInPicture()
+    }
+
+
+    deinit {
+
+        renderTimer?
+            .invalidate()
+    }
+}
+
+
+// MARK: - PiP Delegate
+
+extension PiPManager:
+    AVPictureInPictureControllerDelegate {
+
+
+    func pictureInPictureControllerDidStartPictureInPicture(
+        _ pictureInPictureController:
+            AVPictureInPictureController
+    ) {
+
+        DispatchQueue.main.async {
+
+            self.isPiPActive =
+                true
+
+            self.status =
+                "Janela flutuante aberta!"
+        }
+    }
+
+
+    func pictureInPictureController(
+        _ pictureInPictureController:
+            AVPictureInPictureController,
+
+        failedToStartPictureInPictureWithError
+            error: Error
+    ) {
+
+        DispatchQueue.main.async {
+
+            self.status =
+                "Erro: \(error.localizedDescription)"
+        }
+    }
+
+
+    func pictureInPictureControllerDidStopPictureInPicture(
+        _ pictureInPictureController:
+            AVPictureInPictureController
+    ) {
+
+        DispatchQueue.main.async {
+
+            self.isPiPActive =
+                false
+
+            self.status =
+                "PiP fechado"
+        }
+    }
+}
+
+
+// MARK: - Playback Delegate
+
+@available(iOS 15.0, *)
+
+extension PiPManager:
+    AVPictureInPictureSampleBufferPlaybackDelegate {
+
+
+    // Botão Play/Pause do PiP
+    func pictureInPictureController(
+        _ pictureInPictureController:
+            AVPictureInPictureController,
+
+        setPlaying playing:
+            Bool
+    ) {
+
+        DispatchQueue.main.async {
+
+            if playing {
+
+                self.timerManager?
+                    .start()
+
+            } else {
+
+                self.timerManager?
+                    .pause()
+            }
+        }
+    }
+
+
+    func pictureInPictureControllerTimeRangeForPlayback(
+        _ pictureInPictureController:
+            AVPictureInPictureController
+    ) -> CMTimeRange {
+
+        return CMTimeRange(
+            start:
+                .zero,
+
+            duration:
+                CMTime(
+                    seconds:
+                        3600,
+
+                    preferredTimescale:
+                        600
+                )
+        )
+    }
+
+
+    func pictureInPictureControllerIsPlaybackPaused(
+        _ pictureInPictureController:
+            AVPictureInPictureController
+    ) -> Bool {
+
+        // Diz ao PiP se está pausado
+        return !(
+            timerManager?
+                .isRunning
+            ?? false
+        )
+    }
+
+
+    func pictureInPictureController(
+        _ pictureInPictureController:
+            AVPictureInPictureController,
+
+        skipByInterval
+            skipInterval:
+                CMTime,
+
+        completion
+            completionHandler:
+                @escaping @Sendable () -> Void
+    ) {
+
+        completionHandler()
+    }
+
+
+    func pictureInPictureController(
+        _ pictureInPictureController:
+            AVPictureInPictureController,
+
+        didTransitionToRenderSize
+            newRenderSize:
+                CMVideoDimensions
+    ) {
+
+        print(
+            "📐 Novo tamanho PiP:",
+            newRenderSize.width,
+            "x",
+            newRenderSize.height
+        )
+    }
+}
