@@ -1,15 +1,12 @@
 name: Build FloatingByPeaga
-
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
@@ -20,18 +17,26 @@ jobs:
       - name: Criar projeto Xcode
         run: xcodegen generate
 
-      - name: Compilar app
+      - name: Compilar e arquivar app (sem assinatura)
         run: |
           xcodebuild \
-          -project FloatingByPeaga.xcodeproj \
-          -scheme FloatingByPeaga \
-          -sdk iphonesimulator \
-          -configuration Release \
-          build
+            -project FloatingByPeaga.xcodeproj \
+            -scheme FloatingByPeaga \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath $PWD/build/FloatingByPeaga.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - name: Empacotar IPA manualmente
+        run: |
+          mkdir -p Payload
+          cp -r build/FloatingByPeaga.xcarchive/Products/Applications/*.app Payload/
+          zip -r FloatingByPeaga.ipa Payload
 
       - name: Salvar resultado
         uses: actions/upload-artifact@v4
         with:
           name: FloatingByPeaga-Build
-          path: build
-          if-no-files-found: ignore
+          path: FloatingByPeaga.ipa
+          if-no-files-found: error
