@@ -276,12 +276,11 @@ extension PiPManager:
     AVPictureInPictureControllerDelegate {
 
 
-    func pictureInPictureControllerDidStartPictureInPicture(
-
-        _ pictureInPictureController:
-            AVPictureInPictureController
-
-    ) {
+    func pictureInPictureController(
+    _ pictureInPictureController: AVPictureInPictureController,
+    didTransitionToRenderSize newRenderSize: CMVideoDimensions
+) {
+}
 
         DispatchQueue.main.async {
 
