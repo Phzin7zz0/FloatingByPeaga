@@ -85,9 +85,15 @@ final class PiPManager: NSObject, ObservableObject {
 
         timebase = newTimebase
 
+        // IMPORTANTE: o timebase precisa começar no MESMO relógio absoluto
+        // (host time clock) que o PiPFrameProvider usa para os
+        // presentationTimeStamp dos sample buffers. Se começar em .zero,
+        // o timebase e os frames ficam em "linhas do tempo" diferentes e
+        // a AVSampleBufferDisplayLayer nunca consegue alcançar o PTS dos
+        // frames novos — por isso o Preview travava num valor antigo.
         CMTimebaseSetTime(
             newTimebase,
-            time: .zero
+            time: CMClockGetTime(CMClockGetHostTimeClock())
         )
 
         CMTimebaseSetRate(
