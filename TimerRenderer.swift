@@ -38,6 +38,9 @@ enum TimerRenderer {
             return nil
         }
 
+        // IMPORTANTE: o buffer é BGRA, então o CGContext precisa saber disso
+        // via order32Little — sem isso, R e B ficam trocados na hora de exibir
+        // (ex.: escolher vermelho e aparecer azul).
         guard let context = CGContext(
             data: baseAddress,
             width: width,
@@ -45,7 +48,7 @@ enum TimerRenderer {
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGImageByteOrderInfo.order32Little.rawValue
         ) else {
             CVPixelBufferUnlockBaseAddress(buffer, [])
             return nil
