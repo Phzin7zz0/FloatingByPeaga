@@ -10,99 +10,112 @@ enum TimerRenderer {
         let width = 640
         let height = 360
 
+
         let attributes: [String: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey as String: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+
+            kCVPixelBufferCGImageCompatibilityKey
+                as String: true,
+
+            kCVPixelBufferCGBitmapContextCompatibilityKey
+                as String: true
         ]
+
 
         var pixelBuffer: CVPixelBuffer?
 
-        let status = CVPixelBufferCreate(
+
+        let result = CVPixelBufferCreate(
+
             kCFAllocatorDefault,
+
             width,
+
             height,
+
             kCVPixelFormatType_32BGRA,
+
             attributes as CFDictionary,
+
             &pixelBuffer
         )
 
-        guard status == kCVReturnSuccess,
-              let buffer = pixelBuffer
+
+        guard result == kCVReturnSuccess,
+              let pixelBuffer = pixelBuffer
         else {
-            print("❌ Erro ao criar PixelBuffer")
+
+            print("ERRO CRIANDO PIXEL BUFFER")
+
             return nil
         }
 
+
         CVPixelBufferLockBaseAddress(
-            buffer,
+            pixelBuffer,
             []
         )
 
+
         defer {
+
             CVPixelBufferUnlockBaseAddress(
-                buffer,
+                pixelBuffer,
                 []
             )
         }
 
+
         guard let baseAddress =
-                CVPixelBufferGetBaseAddress(buffer)
+                CVPixelBufferGetBaseAddress(
+                    pixelBuffer
+                )
         else {
-            print("❌ BaseAddress nulo")
+
+            print("SEM BASE ADDRESS")
+
+            return nil
+        }
+
+
+        let bytesPerRow =
+            CVPixelBufferGetBytesPerRow(
+                pixelBuffer
+            )
+
+
+        guard let context = CGContext(
+
+            data: baseAddress,
+
+            width: width,
+
+            height: height,
+
+            bitsPerComponent: 8,
+
+            bytesPerRow: bytesPerRow,
+
+            space:
+                CGColorSpaceCreateDeviceRGB(),
+
+            bitmapInfo:
+                CGImageAlphaInfo
+                    .premultipliedFirst
+                    .rawValue
+
+        ) else {
+
+            print("ERRO CONTEXT")
+
             return nil
         }
 
 
         // IMPORTANTE:
-        // Configuração correta para BGRA
-
-        let bitmapInfo =
-            CGImageAlphaInfo
-                .premultipliedFirst
-                .rawValue
-            |
-            CGBitmapInfo
-                .byteOrder32Little
-                .rawValue
-
-
-        guard let context = CGContext(
-            data: baseAddress,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow:
-                CVPixelBufferGetBytesPerRow(
-                    buffer
-                ),
-            space:
-                CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo:
-                bitmapInfo
-        )
-        else {
-            print("❌ Erro ao criar CGContext")
-            return nil
-        }
-
-
         // Limpa completamente o buffer
 
-        context.clear(
-            CGRect(
-                x: 0,
-                y: 0,
-                width: width,
-                height: height
-            )
-        )
-
-
-        // Fundo VERMELHO para teste
-        // Se aparecer vermelho, sabemos que o renderer funciona
-
         context.setFillColor(
-            UIColor.red.cgColor
+            UIColor.black.cgColor
         )
 
         context.fill(
@@ -115,7 +128,7 @@ enum TimerRenderer {
         )
 
 
-        // Corrige orientação
+        // UIKit trabalha com eixo Y invertido
 
         context.translateBy(
             x: 0,
@@ -128,9 +141,10 @@ enum TimerRenderer {
         )
 
 
-        // Desenha usando UIKit
+        UIGraphicsPushContext(
+            context
+        )
 
-        UIGraphicsPushContext(context)
 
         let paragraphStyle =
             NSMutableParagraphStyle()
@@ -139,35 +153,44 @@ enum TimerRenderer {
             .center
 
 
-        let textAttributes:
-            [NSAttributedString.Key: Any] = [
+        let font =
+            UIFont.monospacedDigitSystemFont(
+                ofSize: 110,
+                weight: .bold
+            )
 
-                .font:
-                    UIFont.monospacedDigitSystemFont(
-                        ofSize: 105,
-                        weight: .bold
-                    ),
 
-                .foregroundColor:
-                    UIColor.white,
+        let attributes: [NSAttributedString.Key: Any] = [
 
-                .paragraphStyle:
-                    paragraphStyle
-            ]
+            .font:
+                font,
+
+            .foregroundColor:
+                UIColor.white,
+
+            .paragraphStyle:
+                paragraphStyle
+        ]
 
 
         let textRect = CGRect(
+
             x: 0,
-            y: 105,
+
+            y: 100,
+
             width: width,
-            height: 150
+
+            height: 160
         )
 
 
         text.draw(
+
             in: textRect,
+
             withAttributes:
-                textAttributes
+                attributes
         )
 
 
@@ -175,11 +198,11 @@ enum TimerRenderer {
 
 
         print(
-            "🖼️ FRAME GERADO:",
+            "FRAME DESENHADO:",
             text
         )
 
 
-        return buffer
+        return pixelBuffer
     }
 }
