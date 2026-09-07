@@ -7,10 +7,11 @@ final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
+    private var frameNumber: Int64 = 0
+
     init(
         displayLayer: AVSampleBufferDisplayLayer
     ) {
-
         self.displayLayer = displayLayer
     }
 
@@ -22,7 +23,6 @@ final class PiPFrameProvider {
                     text: text
                 ) else {
 
-            print("❌ ERRO: PixelBuffer não criado")
             return
         }
 
@@ -35,7 +35,8 @@ final class PiPFrameProvider {
             CMVideoFormatDescriptionCreateForImageBuffer(
                 allocator: kCFAllocatorDefault,
                 imageBuffer: pixelBuffer,
-                formatDescriptionOut: &formatDescription
+                formatDescriptionOut:
+                    &formatDescription
             )
 
 
@@ -43,18 +44,15 @@ final class PiPFrameProvider {
               let formatDescription =
                 formatDescription else {
 
-            print("❌ ERRO: FormatDescription")
             return
         }
 
 
-        // Usa o relógio atual do sistema.
-        // Isso evita que os frames fiquem "atrasados"
-        // e travem no primeiro frame.
-
-        let currentTime =
-            CMClockGetTime(
-                CMClockGetHostTimeClock()
+        // Timestamp sequencial
+        let presentationTime =
+            CMTime(
+                value: frameNumber,
+                timescale: 30
             )
 
 
@@ -68,21 +66,33 @@ final class PiPFrameProvider {
         var timingInfo =
             CMSampleTimingInfo(
                 duration: duration,
-                presentationTimeStamp: currentTime,
-                decodeTimeStamp: .invalid
+                presentationTimeStamp:
+                    presentationTime,
+                decodeTimeStamp:
+                    .invalid
             )
 
 
-        var sampleBuffer: CMSampleBuffer?
+        var sampleBuffer:
+            CMSampleBuffer?
 
 
         let result =
             CMSampleBufferCreateReadyWithImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: pixelBuffer,
-                formatDescription: formatDescription,
-                sampleTiming: &timingInfo,
-                sampleBufferOut: &sampleBuffer
+                allocator:
+                    kCFAllocatorDefault,
+
+                imageBuffer:
+                    pixelBuffer,
+
+                formatDescription:
+                    formatDescription,
+
+                sampleTiming:
+                    &timingInfo,
+
+                sampleBufferOut:
+                    &sampleBuffer
             )
 
 
@@ -90,37 +100,27 @@ final class PiPFrameProvider {
               let sampleBuffer =
                 sampleBuffer else {
 
-            print("❌ ERRO: SampleBuffer")
             return
         }
 
 
-        // Se a layer falhou, limpa
+        // Se der erro, reinicia a layer
         if displayLayer.status == .failed {
 
-            print(
-                "⚠️ DISPLAY LAYER FALHOU:",
-                displayLayer.error?
-                    .localizedDescription
-                    ?? "Erro desconhecido"
-            )
-
             displayLayer.flush()
+
+            frameNumber = 0
         }
 
 
-        // Envia novo frame
+        // Adiciona frame
         if displayLayer.isReadyForMoreMediaData {
 
             displayLayer.enqueue(
                 sampleBuffer
             )
 
-        } else {
-
-            print(
-                "⚠️ Layer não pronta"
-            )
+            frameNumber += 1
         }
     }
 
@@ -128,5 +128,7 @@ final class PiPFrameProvider {
     func reset() {
 
         displayLayer.flush()
+
+        frameNumber = 0
     }
 }
