@@ -7,10 +7,11 @@ final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
+    private var frameCount: Int64 = 0
+
     init(
         displayLayer: AVSampleBufferDisplayLayer
     ) {
-
         self.displayLayer = displayLayer
     }
 
@@ -20,7 +21,8 @@ final class PiPFrameProvider {
         guard let pixelBuffer =
                 TimerRenderer.createPixelBuffer(
                     text: text
-                ) else {
+                )
+        else {
 
             print("❌ ERRO: PixelBuffer não criado")
             return
@@ -40,21 +42,19 @@ final class PiPFrameProvider {
 
 
         guard formatStatus == noErr,
-              let formatDescription =
-                formatDescription else {
+              let formatDescription = formatDescription
+        else {
 
             print("❌ ERRO: FormatDescription")
             return
         }
 
 
-        // Usa o relógio atual do sistema.
-        // Isso evita que os frames fiquem "atrasados"
-        // e travem no primeiro frame.
-
-        let currentTime =
-            CMClockGetTime(
-                CMClockGetHostTimeClock()
+        // Timeline simples de 30 FPS
+        let presentationTime =
+            CMTime(
+                value: frameCount,
+                timescale: 30
             )
 
 
@@ -68,12 +68,13 @@ final class PiPFrameProvider {
         var timingInfo =
             CMSampleTimingInfo(
                 duration: duration,
-                presentationTimeStamp: currentTime,
+                presentationTimeStamp: presentationTime,
                 decodeTimeStamp: .invalid
             )
 
 
-        var sampleBuffer: CMSampleBuffer?
+        var sampleBuffer:
+            CMSampleBuffer?
 
 
         let result =
@@ -87,15 +88,15 @@ final class PiPFrameProvider {
 
 
         guard result == noErr,
-              let sampleBuffer =
-                sampleBuffer else {
+              let sampleBuffer = sampleBuffer
+        else {
 
             print("❌ ERRO: SampleBuffer")
             return
         }
 
 
-        // Se a layer falhou, limpa
+        // Se deu erro, reinicia a layer
         if displayLayer.status == .failed {
 
             print(
@@ -106,15 +107,19 @@ final class PiPFrameProvider {
             )
 
             displayLayer.flush()
+
+            frameCount = 0
         }
 
 
-        // Envia novo frame
+        // Envia frame
         if displayLayer.isReadyForMoreMediaData {
 
             displayLayer.enqueue(
                 sampleBuffer
             )
+
+            frameCount += 1
 
         } else {
 
@@ -128,5 +133,7 @@ final class PiPFrameProvider {
     func reset() {
 
         displayLayer.flush()
+
+        frameCount = 0
     }
 }
