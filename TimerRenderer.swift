@@ -2,9 +2,7 @@ import UIKit
 import CoreVideo
 
 enum TimerRenderer {
-
     static func createPixelBuffer(text: String) -> CVPixelBuffer? {
-
         let width = 640
         let height = 360
 
@@ -15,7 +13,6 @@ enum TimerRenderer {
         ]
 
         var pixelBuffer: CVPixelBuffer?
-
         let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
             width,
@@ -27,7 +24,6 @@ enum TimerRenderer {
 
         guard status == kCVReturnSuccess,
               let buffer = pixelBuffer else {
-            print("❌ ERRO CRIANDO BUFFER")
             return nil
         }
 
@@ -51,25 +47,14 @@ enum TimerRenderer {
             return nil
         }
 
-        // IMPORTANTE: CGContext criado direto sobre a memória do
-        // CVPixelBuffer tem origem no canto inferior esquerdo (padrão
-        // do Core Graphics). O buffer de vídeo/AVSampleBufferDisplayLayer
-        // espera a linha 0 no topo, e o UIKit também desenha texto
-        // assumindo origem no topo. Sem esse flip, tudo sai espelhado
-        // verticalmente (de cabeça para baixo).
+        // Flip vertical: CGContext sobre CVPixelBuffer tem origem embaixo,
+        // vídeo/AVSampleBufferDisplayLayer espera origem no topo.
         context.translateBy(x: 0, y: CGFloat(height))
         context.scaleBy(x: 1.0, y: -1.0)
 
-        // TESTE: FUNDO VERMELHO FORTE
-        context.setFillColor(UIColor.red.cgColor)
-        context.fill(
-            CGRect(
-                x: 0,
-                y: 0,
-                width: width,
-                height: height
-            )
-        )
+        // Fundo preto (combina com o .background(Color.black) do ContentView)
+        context.setFillColor(UIColor.black.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
         UIGraphicsPushContext(context)
 
@@ -77,30 +62,10 @@ enum TimerRenderer {
         paragraphStyle.alignment = .center
 
         let textAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedDigitSystemFont(
-                ofSize: 100,
-                weight: .bold
-            ),
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 100, weight: .bold),
             .foregroundColor: UIColor.white,
             .paragraphStyle: paragraphStyle
         ]
 
         text.draw(
-            in: CGRect(
-                x: 0,
-                y: 120,
-                width: width,
-                height: 120
-            ),
-            withAttributes: textAttributes
-        )
-
-        UIGraphicsPopContext()
-
-        CVPixelBufferUnlockBaseAddress(buffer, [])
-
-        print("🟥 BUFFER CRIADO:", text)
-
-        return buffer
-    }
-}
+            in: CGRect(x: 0, y: 120, width: width, height: 120),
