@@ -10,13 +10,13 @@ jobs:
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
-
+ 
       - name: Instalar XcodeGen
         run: brew install xcodegen
-
+ 
       - name: Criar projeto Xcode
         run: xcodegen generate
-
+ 
       - name: Compilar e arquivar app (sem assinatura)
         run: |
           xcodebuild \
@@ -27,13 +27,13 @@ jobs:
             -archivePath $PWD/build/FloatingByPeaga.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             archive
-
+ 
       - name: Empacotar IPA manualmente
         run: |
           mkdir -p Payload
           cp -r build/FloatingByPeaga.xcarchive/Products/Applications/*.app Payload/
           zip -r FloatingByPeaga.ipa Payload
-
+ 
       - name: Salvar resultado
         uses: actions/upload-artifact@v4
         with:
