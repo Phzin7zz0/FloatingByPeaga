@@ -7,18 +7,49 @@ final class PiPFrameProvider {
 
     private let displayLayer: AVSampleBufferDisplayLayer
 
-    private var frameNumber: Int64 = 0
+    private var timebase: CMTimebase?
+    private var frameCount: Int64 = 0
 
-    init(
-        displayLayer: AVSampleBufferDisplayLayer
-    ) {
+    init(displayLayer: AVSampleBufferDisplayLayer) {
 
         self.displayLayer = displayLayer
 
-        // Não usa controlTimebase manual.
-        // Deixa a AVSampleBufferDisplayLayer
-        // controlar o tempo.
-        self.displayLayer.videoGravity = .resizeAspect
+        setupDisplayLayer()
+    }
+
+
+    private func setupDisplayLayer() {
+
+        var newTimebase: CMTimebase?
+
+        let result = CMTimebaseCreateWithSourceClock(
+            allocator: kCFAllocatorDefault,
+            sourceClock: CMClockGetHostTimeClock(),
+            timebaseOut: &newTimebase
+        )
+
+        guard result == noErr,
+              let newTimebase = newTimebase else {
+
+            print("ERRO AO CRIAR TIMEBASE")
+            return
+        }
+
+        timebase = newTimebase
+
+        CMTimebaseSetTime(
+            newTimebase,
+            time: .zero
+        )
+
+        CMTimebaseSetRate(
+            newTimebase,
+            rate: 1.0
+        )
+
+        displayLayer.controlTimebase = newTimebase
+
+        displayLayer.videoGravity = .resizeAspect
     }
 
 
@@ -30,103 +61,86 @@ final class PiPFrameProvider {
                 )
         else {
 
-            print("❌ PixelBuffer falhou")
+            print("ERRO PIXEL BUFFER")
             return
         }
 
 
-        var formatDescription:
-            CMVideoFormatDescription?
+        var formatDescription: CMVideoFormatDescription?
 
-
-        let formatStatus =
+        let formatResult =
             CMVideoFormatDescriptionCreateForImageBuffer(
-                allocator:
-                    kCFAllocatorDefault,
-
-                imageBuffer:
-                    pixelBuffer,
-
-                formatDescriptionOut:
-                    &formatDescription
+                allocator: kCFAllocatorDefault,
+                imageBuffer: pixelBuffer,
+                formatDescriptionOut: &formatDescription
             )
 
 
-        guard formatStatus == noErr,
-              let formatDescription =
-                formatDescription
+        guard formatResult == noErr,
+              let formatDescription = formatDescription
         else {
 
-            print("❌ FormatDescription falhou")
+            print("ERRO FORMAT DESCRIPTION")
             return
         }
 
 
-        // Timestamp inválido faz a layer
-        // mostrar o frame imediatamente
+        // Timestamp baseado no contador de frames
+        // Evita conflito entre HostClock e Timebase
 
-        var timingInfo =
-            CMSampleTimingInfo(
-                duration:
-                    CMTime(
-                        value: 1,
-                        timescale: 30
-                    ),
+        let presentationTime = CMTime(
+            value: frameCount,
+            timescale: 30
+        )
 
-                presentationTimeStamp:
-                    .invalid,
-
-                decodeTimeStamp:
-                    .invalid
-            )
+        let duration = CMTime(
+            value: 1,
+            timescale: 30
+        )
 
 
-        var sampleBuffer:
-            CMSampleBuffer?
+        var timingInfo = CMSampleTimingInfo(
+            duration: duration,
+            presentationTimeStamp: presentationTime,
+            decodeTimeStamp: .invalid
+        )
 
 
-        let result =
+        var sampleBuffer: CMSampleBuffer?
+
+        let sampleResult =
             CMSampleBufferCreateReadyWithImageBuffer(
-                allocator:
-                    kCFAllocatorDefault,
-
-                imageBuffer:
-                    pixelBuffer,
-
-                formatDescription:
-                    formatDescription,
-
-                sampleTiming:
-                    &timingInfo,
-
-                sampleBufferOut:
-                    &sampleBuffer
+                allocator: kCFAllocatorDefault,
+                imageBuffer: pixelBuffer,
+                formatDescription: formatDescription,
+                sampleTiming: &timingInfo,
+                sampleBufferOut: &sampleBuffer
             )
 
 
-        guard result == noErr,
-              let sampleBuffer =
-                sampleBuffer
+        guard sampleResult == noErr,
+              let sampleBuffer = sampleBuffer
         else {
 
-            print("❌ SampleBuffer falhou")
+            print("ERRO SAMPLE BUFFER")
             return
         }
 
-
-        // Se a layer falhou
 
         if displayLayer.status == .failed {
 
-            print("⚠️ Layer falhou")
+            print(
+                "LAYER FALHOU:",
+                displayLayer.error?
+                    .localizedDescription
+                ?? "SEM ERRO"
+            )
 
             displayLayer.flush()
 
-            frameNumber = 0
+            frameCount = 0
         }
 
-
-        // Envia frame
 
         if displayLayer.isReadyForMoreMediaData {
 
@@ -134,13 +148,11 @@ final class PiPFrameProvider {
                 sampleBuffer
             )
 
-            frameNumber += 1
+            frameCount += 1
 
         } else {
 
-            print(
-                "⚠️ Layer não aceita frame"
-            )
+            print("LAYER NAO ESTA PRONTA")
         }
     }
 
@@ -149,6 +161,19 @@ final class PiPFrameProvider {
 
         displayLayer.flush()
 
-        frameNumber = 0
+        frameCount = 0
+
+        if let timebase = timebase {
+
+            CMTimebaseSetTime(
+                timebase,
+                time: .zero
+            )
+
+            CMTimebaseSetRate(
+                timebase,
+                rate: 1.0
+            )
+        }
     }
 }
