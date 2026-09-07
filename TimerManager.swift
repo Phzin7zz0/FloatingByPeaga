@@ -1,195 +1,104 @@
-import UIKit
-import CoreVideo
+import Foundation
+import Combine
+import AVFoundation
 
-enum TimerRenderer {
+final class TimerManager: ObservableObject {
 
-    static func createPixelBuffer(
-        text: String
-    ) -> CVPixelBuffer? {
+    @Published var elapsedTime: TimeInterval = 0
+    @Published var isRunning = false
 
-        let width = 640
-        let height = 360
+    private var timer: Timer?
+    private var pipFrameProvider: PiPFrameProvider?
 
-        let pixelBufferAttributes: [String: Any] = [
+    private var lastPiPUpdate: Date = .distantPast
 
-            kCVPixelBufferCGImageCompatibilityKey
-                as String: true,
+    // Conecta o cronômetro ao Picture-in-Picture
+    func connectPiP(displayLayer: AVSampleBufferDisplayLayer) {
+        pipFrameProvider = PiPFrameProvider(displayLayer: displayLayer)
 
-            kCVPixelBufferCGBitmapContextCompatibilityKey
-                as String: true
-        ]
+        updatePiP()
+    }
 
-        var pixelBuffer: CVPixelBuffer?
+    // Iniciar cronômetro
+    func start() {
 
-        let result = CVPixelBufferCreate(
+        guard !isRunning else { return }
 
-            kCFAllocatorDefault,
+        isRunning = true
 
-            width,
+        let startDate = Date().addingTimeInterval(-elapsedTime)
 
-            height,
+        timer = Timer.scheduledTimer(
+            withTimeInterval: 0.01,
+            repeats: true
+        ) { [weak self] _ in
 
-            kCVPixelFormatType_32BGRA,
+            guard let self else { return }
 
-            pixelBufferAttributes as CFDictionary,
+            DispatchQueue.main.async {
 
-            &pixelBuffer
-        )
+                self.elapsedTime =
+                    Date().timeIntervalSince(startDate)
 
-        guard result == kCVReturnSuccess,
-              let pixelBuffer = pixelBuffer
-        else {
+                // Atualiza PiP aproximadamente a 30 FPS
+                let now = Date()
 
-            print("❌ ERRO CRIANDO PIXEL BUFFER")
+                if now.timeIntervalSince(
+                    self.lastPiPUpdate
+                ) >= (1.0 / 30.0) {
 
-            return nil
+                    self.lastPiPUpdate = now
+                    self.updatePiP()
+                }
+            }
         }
+    }
 
-        CVPixelBufferLockBaseAddress(
-            pixelBuffer,
-            []
+    // Pausar cronômetro
+    func pause() {
+
+        timer?.invalidate()
+        timer = nil
+
+        isRunning = false
+
+        updatePiP()
+    }
+
+    // Reiniciar cronômetro
+    func reset() {
+
+        pause()
+
+        elapsedTime = 0
+
+        updatePiP()
+    }
+
+    // Atualiza conteúdo do PiP
+    private func updatePiP() {
+
+        pipFrameProvider?.update(
+            text: formattedTime
+        )
+    }
+
+    // Formato: 5:59.77
+    var formattedTime: String {
+
+        let minutes = Int(elapsedTime) / 60
+        let seconds = Int(elapsedTime) % 60
+
+        let centiseconds = Int(
+            (elapsedTime * 100)
+                .truncatingRemainder(dividingBy: 100)
         )
 
-        defer {
-
-            CVPixelBufferUnlockBaseAddress(
-                pixelBuffer,
-                []
-            )
-        }
-
-        guard let baseAddress =
-                CVPixelBufferGetBaseAddress(
-                    pixelBuffer
-                )
-        else {
-
-            print("❌ SEM BASE ADDRESS")
-
-            return nil
-        }
-
-        let bytesPerRow =
-            CVPixelBufferGetBytesPerRow(
-                pixelBuffer
-            )
-
-        let colorSpace =
-            CGColorSpaceCreateDeviceRGB()
-
-        let bitmapInfo =
-            CGImageAlphaInfo
-                .premultipliedFirst
-                .rawValue
-            |
-            CGBitmapInfo
-                .byteOrder32Little
-                .rawValue
-
-        guard let context = CGContext(
-
-            data: baseAddress,
-
-            width: width,
-
-            height: height,
-
-            bitsPerComponent: 8,
-
-            bytesPerRow: bytesPerRow,
-
-            space: colorSpace,
-
-            bitmapInfo: bitmapInfo
-
-        ) else {
-
-            print("❌ ERRO CRIANDO CONTEXT")
-
-            return nil
-        }
-
-        // Fundo preto
-        context.setFillColor(
-            UIColor.black.cgColor
+        return String(
+            format: "%d:%02d.%02d",
+            minutes,
+            seconds,
+            centiseconds
         )
-
-        context.fill(
-            CGRect(
-                x: 0,
-                y: 0,
-                width: width,
-                height: height
-            )
-        )
-
-        // Inverte coordenadas para UIKit
-        context.translateBy(
-            x: 0,
-            y: CGFloat(height)
-        )
-
-        context.scaleBy(
-            x: 1,
-            y: -1
-        )
-
-        UIGraphicsPushContext(
-            context
-        )
-
-        defer {
-
-            UIGraphicsPopContext()
-        }
-
-        let paragraphStyle =
-            NSMutableParagraphStyle()
-
-        paragraphStyle.alignment =
-            .center
-
-        let font =
-            UIFont.monospacedDigitSystemFont(
-                ofSize: 110,
-                weight: .bold
-            )
-
-        let textAttributes: [NSAttributedString.Key: Any] = [
-
-            .font: font,
-
-            .foregroundColor:
-                UIColor.white,
-
-            .paragraphStyle:
-                paragraphStyle
-        ]
-
-        let textRect = CGRect(
-
-            x: 0,
-
-            y: 100,
-
-            width: CGFloat(width),
-
-            height: 160
-        )
-
-        text.draw(
-
-            in: textRect,
-
-            withAttributes:
-                textAttributes
-        )
-
-        print(
-            "✅ FRAME DESENHADO:",
-            text
-        )
-
-        return pixelBuffer
     }
 }
