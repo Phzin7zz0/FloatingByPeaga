@@ -6,6 +6,8 @@ struct ContentView: View {
     @StateObject private var pipManager = PiPManager()
     @StateObject private var timerManager = TimerManager()
     @State private var showAbout = true
+    @State private var showControls = true
+    @State private var hideControlsWorkItem: DispatchWorkItem?
  
     var body: some View {
  
@@ -63,39 +65,44 @@ struct ContentView: View {
  
                 // MARK: - Botões do cronômetro
  
-                HStack(spacing: 15) {
+                if showControls {
  
-                    Button {
+                    HStack(spacing: 15) {
  
-                        timerManager.start()
+                        Button {
  
-                    } label: {
+                            timerManager.start()
  
-                        Text("Iniciar")
+                        } label: {
+ 
+                            Text("Iniciar")
+                        }
+                        .buttonStyle(.borderedProminent)
+ 
+ 
+                        Button {
+ 
+                            timerManager.pause()
+                            scheduleHideControls()
+ 
+                        } label: {
+ 
+                            Text("Pausar")
+                        }
+                        .buttonStyle(.bordered)
+ 
+ 
+                        Button {
+ 
+                            timerManager.reset()
+ 
+                        } label: {
+ 
+                            Text("Resetar")
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.borderedProminent)
- 
- 
-                    Button {
- 
-                        timerManager.pause()
- 
-                    } label: {
- 
-                        Text("Pausar")
-                    }
-                    .buttonStyle(.bordered)
- 
- 
-                    Button {
- 
-                        timerManager.reset()
- 
-                    } label: {
- 
-                        Text("Resetar")
-                    }
-                    .buttonStyle(.bordered)
+                    .transition(.opacity)
                 }
  
  
@@ -170,6 +177,31 @@ struct ContentView: View {
             pipManager.connectTimer(
                 timerManager
             )
+ 
+            pipManager.onPiPInteraction = {
+ 
+                withAnimation {
+                    showControls = true
+                }
+ 
+                if !timerManager.isRunning {
+                    scheduleHideControls()
+                }
+            }
+        }
+ 
+        // MARK: - Toque na tela reexibe os botões
+ 
+        .onTapGesture {
+ 
+            if !showControls {
+ 
+                hideControlsWorkItem?.cancel()
+ 
+                withAnimation {
+                    showControls = true
+                }
+            }
         }
  
         // MARK: - Tela "Desenvolvido por"
@@ -214,6 +246,28 @@ struct ContentView: View {
             .padding(30)
             .presentationDetents([.medium])
         }
+    }
+ 
+ 
+    // MARK: - Agenda o sumiço dos botões 3s após pausar
+ 
+    private func scheduleHideControls() {
+ 
+        hideControlsWorkItem?.cancel()
+ 
+        let workItem = DispatchWorkItem {
+ 
+            withAnimation {
+                showControls = false
+            }
+        }
+ 
+        hideControlsWorkItem = workItem
+ 
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 3,
+            execute: workItem
+        )
     }
 }
  
