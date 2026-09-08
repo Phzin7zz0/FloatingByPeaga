@@ -392,11 +392,14 @@ extension PiPManager:
     }
 
 
-    // Tempo disponível para reprodução
-    // Usamos .positiveInfinity como duração para garantir que o "tempo
-    // atual" (baseado no host clock absoluto, que é um valor grande)
-    // sempre esteja dentro do intervalo válido — evitando que o botão
-    // de avançar (⏩) fique cinza/desabilitado.
+    // Tempo disponível para reprodução.
+    // Usamos uma duração enorme (~100 anos), mas FINITA, para garantir
+    // que o "tempo atual" (baseado no host clock absoluto, que pode ser
+    // um valor grande dependendo de quanto tempo o iPhone está ligado)
+    // sempre esteja dentro do intervalo válido. Usar .positiveInfinity
+    // parece a solução óbvia, mas faz o AVKit não conseguir calcular
+    // duração/progresso restante e desabilita os DOIS botões (voltar
+    // e avançar) por segurança.
     func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController:
             AVPictureInPictureController
@@ -404,7 +407,10 @@ extension PiPManager:
 
         return CMTimeRange(
             start: .zero,
-            duration: .positiveInfinity
+            duration: CMTime(
+                seconds: 3_153_600_000,
+                preferredTimescale: 600
+            )
         )
     }
 
