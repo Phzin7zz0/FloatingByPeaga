@@ -17,7 +17,7 @@ final class PiPManager: NSObject, ObservableObject {
     // Conexão com o cronômetro principal
     weak var timerManager: TimerManager?
 
-    // Conexão com as configurações de aparência (cores do fundo/números)
+    // Conexão com as configurações de aparência (cores/fonte dos números)
     weak var appearanceManager: AppearanceManager?
 
     // Chamado sempre que o usuário toca no play/pause da janela flutuante (PiP)
@@ -208,6 +208,7 @@ final class PiPManager: NSObject, ObservableObject {
 
         let backgroundColor = appearanceManager.map { UIColor($0.backgroundColor) } ?? .black
         let textColor = appearanceManager.map { UIColor($0.textColor) } ?? .white
+        let font = (appearanceManager?.selectedFont ?? .system).uiFont(size: 100)
 
         guard let timerManager = timerManager else {
 
@@ -215,7 +216,8 @@ final class PiPManager: NSObject, ObservableObject {
             frameProvider?.update(
                 text: "00:00.00",
                 backgroundColor: backgroundColor,
-                textColor: textColor
+                textColor: textColor,
+                font: font
             )
 
             return
@@ -225,7 +227,8 @@ final class PiPManager: NSObject, ObservableObject {
         frameProvider?.update(
             text: timerManager.formattedTime,
             backgroundColor: backgroundColor,
-            textColor: textColor
+            textColor: textColor,
+            font: font
         )
     }
 
@@ -390,6 +393,10 @@ extension PiPManager:
 
 
     // Tempo disponível para reprodução
+    // Usamos .positiveInfinity como duração para garantir que o "tempo
+    // atual" (baseado no host clock absoluto, que é um valor grande)
+    // sempre esteja dentro do intervalo válido — evitando que o botão
+    // de avançar (⏩) fique cinza/desabilitado.
     func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController:
             AVPictureInPictureController
@@ -397,11 +404,7 @@ extension PiPManager:
 
         return CMTimeRange(
             start: .zero,
-
-            duration: CMTime(
-                seconds: 86400,
-                preferredTimescale: 600
-            )
+            duration: .positiveInfinity
         )
     }
 
