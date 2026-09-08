@@ -14,12 +14,14 @@ final class PiPFrameProvider {
     func update(
         text: String,
         backgroundColor: UIColor = .black,
-        textColor: UIColor = .white
+        textColor: UIColor = .white,
+        font: UIFont = UIFont.monospacedDigitSystemFont(ofSize: 100, weight: .bold)
     ) {
         guard let pixelBuffer = TimerRenderer.createPixelBuffer(
             text: text,
             backgroundColor: backgroundColor,
-            textColor: textColor
+            textColor: textColor,
+            font: font
         ) else {
             return
         }
